@@ -46,7 +46,6 @@ object FusClient {
         HISTORY("SmartHistory.do", false),
     }
 
-    private var encNonce = ""
     private var nonce = ""
 
     private var auth: String = ""
@@ -94,7 +93,7 @@ object FusClient {
                 val chars = "abcdefghijklmnopqrstuvwxyz0123456789"
                 CharArray(16) { chars.random() }.joinToString("")
             }
-            includeNonce -> encNonce
+            includeNonce -> nonce
             else -> ""
         }
         return "FUS nonce=\"${if (cloud) nonce else ""}\", signature=\"${makeSignatureHash(signature?.takeIf { !it.isBlank() }) ?: this.auth}\", nc=\"${if (hasSignature) "00000001" else ""}\", type=\"${if (hasSignature) "auth" else ""}\", realm=\"${if (hasSignature) "auth" else ""}\""
@@ -140,11 +139,10 @@ object FusClient {
 
         if (response.headers["NONCE"] != null || response.headers["nonce"] != null) {
             try {
-                encNonce = response.headers["NONCE"] ?: response.headers["nonce"] ?: ""
-                nonce = encNonce
+                nonce = response.headers["NONCE"] ?: response.headers["nonce"] ?: ""
 
                 try {
-                    auth = CryptUtils.decryptNonce(encNonce.take(16).padEnd((16 - encNonce.length).coerceAtLeast(0), '0'))
+                    auth = CryptUtils.decryptNonce(nonce.take(16).padEnd((16 - nonce.length).coerceAtLeast(0), '0'))
                 } catch (_: Exception) {}
             } catch (e: ArrayIndexOutOfBoundsException) {
                 BugsnagUtils.addBreadcrumb(
