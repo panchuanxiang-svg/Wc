@@ -96,7 +96,11 @@ object FusClient {
             includeNonce -> nonce
             else -> ""
         }
-        return "FUS nonce=\"${if (cloud) nonce else ""}\", signature=\"${makeSignatureHash(signature?.takeIf { !it.isBlank() }) ?: this.auth}\", nc=\"${if (hasSignature) "00000001" else ""}\", type=\"${if (hasSignature) "auth" else ""}\", realm=\"${if (hasSignature) "auth" else ""}\""
+        return "FUS nonce=\"${if (cloud) nonce else this.nonce}\", " +
+                "signature=\"${makeSignatureHash(signature?.takeIf { !it.isBlank() }) ?: this.auth}\", " +
+                "nc=\"${if (hasSignature) "00000001" else ""}\", " +
+                "type=\"${if (hasSignature) "auth" else ""}\", " +
+                "realm=\"${if (hasSignature) "interface" else ""}\""
     }
 
     private fun getDownloadUrl(path: String): String {
