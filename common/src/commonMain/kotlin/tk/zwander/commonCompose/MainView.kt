@@ -27,6 +27,7 @@ import tk.zwander.commonCompose.view.LocalUseTransparencyEffects
 import tk.zwander.commonCompose.view.components.BifrostTheme
 import tk.zwander.commonCompose.view.components.TabView
 import tk.zwander.commonCompose.view.components.pages
+import tk.zwander.commonCompose.BetaMode
 import kotlin.time.ExperimentalTime
 
 /**
@@ -44,6 +45,7 @@ fun MainView(
 
     LaunchedEffect(null) {
         ketch.start()
+
         ketch.tasks.value.forEach {
             if (it.state.value is DownloadState.Completed) {
                 it.remove()
@@ -57,13 +59,20 @@ fun MainView(
         val useTransparency = LocalUseTransparencyEffects.current
 
         Surface(
-            color = if (useTransparency) Color.Transparent else MaterialTheme.colorScheme.surface,
+            color = if (useTransparency)
+                Color.Transparent
+            else
+                MaterialTheme.colorScheme.surface,
         ) {
             CompositionLocalProvider(
-                LocalContentColor provides if (useTransparency) MaterialTheme.colorScheme.onBackground else LocalContentColor.current,
+                LocalContentColor provides if (useTransparency)
+                    MaterialTheme.colorScheme.onBackground
+                else
+                    LocalContentColor.current,
             ) {
                 Column(
-                    modifier = modifier.fillMaxSize()
+                    modifier = modifier
+                        .fillMaxSize()
                         .padding(fullPadding),
                 ) {
                     Column(
@@ -72,13 +81,21 @@ fun MainView(
                             .widthIn(max = 1200.dp)
                             .align(Alignment.CenterHorizontally)
                     ) {
+
                         HorizontalPager(
                             state = pagerState,
                             pageSpacing = 8.dp,
-                            userScrollEnabled = HostOS.current == HostOS.Android || HostOS.current == HostOS.IOS,
+                            userScrollEnabled =
+                                HostOS.current == HostOS.Android ||
+                                HostOS.current == HostOS.IOS,
                             beyondViewportPageCount = pagerState.pageCount,
                         ) {
-                            pages[it].render()
+
+                            if (it < pages.size) {
+                                pages[it].render()
+                            } else {
+                                BetaMode()
+                            }
                         }
                     }
 
