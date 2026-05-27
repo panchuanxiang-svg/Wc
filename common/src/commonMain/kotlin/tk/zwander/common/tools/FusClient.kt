@@ -2,56 +2,27 @@ package tk.zwander.common.tools
 
 import com.fleeksoft.io.exception.ArrayIndexOutOfBoundsException
 import com.fleeksoft.ksoup.Ksoup
-import com.linroid.ketch.api.Destination
-import com.linroid.ketch.api.DownloadRequest
-import com.linroid.ketch.api.DownloadState
-import com.linroid.ketch.api.KetchError
-import dev.zwander.kotlin.file.IPlatformFile
-import io.ktor.client.plugins.HttpTimeoutConfig
-import io.ktor.client.plugins.timeout
 import io.ktor.client.request.headers
-import io.ktor.client.request.prepareRequest
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
-import io.ktor.client.request.url
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
-import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.core.toByteArray
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.launch
-import kotlinx.io.InternalIoApi
-import tk.zwander.common.util.BreadcrumbType
-import tk.zwander.common.util.BugsnagUtils
 import tk.zwander.common.util.firstElementByTagName
 import tk.zwander.common.util.globalHttpClient
-import tk.zwander.common.util.ketch
 
-/**
- * Manage communications with Samsung's server.
- */
 object FusClient {
+
     enum class Request(val value: String, val cloud: Boolean) {
         GENERATE_NONCE("NF_SmartDownloadGenerateNonce.do", false),
-
-        // 固件信息查询
         BINARY_INFORM("NF_SmartDownloadBinaryInform.do", false),
-
-        // 固件初始化
         BINARY_INIT("NF_SmartDownloadBinaryInitForMass.do", false),
-
-        // 历史版本
         HISTORY("SmartHistory.do", false),
     }
 
     private var nonce = ""
-
     private var auth: String = ""
     private var sessionId: String = ""
 
@@ -64,21 +35,9 @@ object FusClient {
     }
 
     private suspend fun generateNonce() {
-        BugsnagUtils.addBreadcrumb(
-            message = "Generating nonce.",
-            data = mapOf(),
-            type = BreadcrumbType.LOG,
-        )
-
         println("Generating nonce.")
 
         makeReq(Request.GENERATE_NONCE)
-
-        BugsnagUtils.addBreadcrumb(
-            message = "Nonce: $nonce, Auth: $auth",
-            data = mapOf(),
-            type = BreadcrumbType.LOG,
-        )
 
         println("Nonce: $nonce")
         println("Auth: $auth")
@@ -89,48 +48,57 @@ object FusClient {
 
         val hasher = CryptUtils.md5Provider.hasher()
 
-        val a = hasher.hash("auth:$nonce:00000001".toByteArray()).toHexString()
-        val b = hasher.hash("interface:$signature".toByteArray()).toHexString()
+        val a = hasher.hash(
+            "auth:$nonce:00000001".toByteArray()
+        ).toHexString()
 
-        return hasher.hash("$a:FUS:$b".toByteArray()).toHexString()
+        val b = hasher.hash(
+            "interface:$signature".toByteArray()
+        ).toHexString()
+
+        return hasher.hash(
+            "$a:FUS:$b".toByteArray()
+        ).toHexString()
     }
 
     private suspend fun getAuthV(
         includeNonce: Boolean = true,
         signature: String? = null,
-        cloud: Boolean = false
+        cloud: Boolean = false,
     ): String {
+
         val hasSignature = !signature.isNullOrBlank()
 
-        val nonce = when {
+        val nonceValue = when {
             includeNonce && hasSignature -> {
                 val chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-                CharArray(16) { chars.random() }.joinToString("")
+
+                CharArray(16) {
+                    chars.random()
+                }.joinToString("")
             }
 
-            includeNonce -> this.nonce
+            includeNonce -> nonce
+
             else -> ""
         }
 
-        return "FUS nonce=\"${if (cloud) nonce else this.nonce}\", " +
-                "signature=\"${makeSignatureHash(signature?.takeIf { !it.isBlank() }) ?: this.auth}\", " +
+        return "FUS nonce=\"${if (cloud) nonceValue else nonce}\", " +
+                "signature=\"${makeSignatureHash(signature?.takeIf { !it.isBlank() }) ?: auth}\", " +
                 "nc=\"${if (hasSignature) "00000001" else ""}\", " +
                 "type=\"${if (hasSignature) "auth" else ""}\", " +
                 "realm=\"${if (hasSignature) "interface" else ""}\""
     }
 
-    private fun getDownloadUrl(path: String): String {
-        return "http://cloud-neofussvr.samsungmobile.com/NF_SmartDownloadBinaryForMass.do?file=${path}"
-    }
-
     /**
-     * 发起固件信息查询
+     * 查询固件信息
      */
     suspend fun getFirmwareInformation(
         model: String,
         region: String,
-        version: String
+        version: String,
     ): String? {
+
         val xml = """
             <FUSMsg>
                 <FUSHdr>
@@ -153,10 +121,11 @@ object FusClient {
         """.trimIndent()
 
         return try {
+
             val response = makeReq(
                 request = Request.BINARY_INFORM,
                 data = xml,
-                signature = model
+                signature = model,
             )
 
             println("========== FUS RESPONSE ==========")
@@ -172,6 +141,7 @@ object FusClient {
             } else {
                 null
             }
+
         } catch (e: Exception) {
             e.printStackTrace()
             null
@@ -181,27 +151,41 @@ object FusClient {
     suspend fun makeReq(
         request: Request,
         data: String = "",
-        signature: String? = null
+        signature: String? = null,
     ): String {
-        if (nonce.isBlank() && request != Request.GENERATE_NONCE) {
+
+        if (
+            nonce.isBlank() &&
+            request != Request.GENERATE_NONCE
+        ) {
             generateNonce()
         }
 
         val authV = getAuthV(
             cloud = request.cloud,
-            signature = signature
+            signature = signature,
         )
 
         val response =
-            globalHttpClient.request("https://neofussvr.sslcs.cdngc.net/${request.value}") {
+            globalHttpClient.request(
+                "https://neofussvr.sslcs.cdngc.net/${request.value}"
+            ) {
+
                 method = HttpMethod.Post
 
                 headers {
                     append("Authorization", authV)
                     append("User-Agent", "SMART 2.0")
-                    append("Cookie", "JSESSIONID=${sessionId};SESSION=${sessionId}")
-                    append("Set-Cookie", "JSESSIONID=${sessionId};SESSION=${sessionId}")
-                    append(HttpHeaders.ContentLength, "${data.toByteArray().size}")
+
+                    append(
+                        "Cookie",
+                        "JSESSIONID=$sessionId;SESSION=$sessionId"
+                    )
+
+                    append(
+                        HttpHeaders.ContentLength,
+                        "${data.toByteArray().size}"
+                    )
                 }
 
                 setBody(data)
@@ -209,52 +193,91 @@ object FusClient {
 
         val body = response.bodyAsText()
 
-        if (request != Request.GENERATE_NONCE && response.is401(body)) {
+        /**
+         * 401 自动重试
+         */
+        if (
+            request != Request.GENERATE_NONCE &&
+            response.is401(body)
+        ) {
+
+            println("401 detected, regenerating nonce...")
+
             generateNonce()
-            return makeReq(request, data)
+
+            return makeReq(
+                request,
+                data,
+                signature,
+            )
         }
 
-        if (response.headers["NONCE"] != null || response.headers["nonce"] != null) {
+        /**
+         * 更新 NONCE
+         */
+        val newNonce =
+            response.headers["NONCE"]
+                ?: response.headers["nonce"]
+
+        if (newNonce != null) {
+
             try {
-                nonce = response.headers["NONCE"]
-                    ?: response.headers["nonce"]
-                    ?: ""
+                nonce = newNonce
 
                 try {
                     auth = CryptUtils.decryptNonce(
                         nonce.take(16)
-                            .padEnd((16 - nonce.length).coerceAtLeast(0), '0')
+                            .padEnd(16, '0')
                     )
                 } catch (_: Exception) {
                 }
+
             } catch (e: ArrayIndexOutOfBoundsException) {
                 e.printStackTrace()
             }
         }
 
+        /**
+         * 更新 Session
+         */
+        val setCookie =
+            response.headers["Set-Cookie"]
+                ?: response.headers["set-cookie"]
+
+        if (setCookie != null) {
+
+            sessionId =
+                setCookie.substringAfter("JSESSIONID=")
+                    .substringBefore(";")
+        }
+
         return body
     }
 
+    /**
+     * 检测 401
+     */
     private fun HttpResponse.is401(body: String): Boolean {
+
         if (status.value == 401) {
             return true
         }
 
-        try {
+        return try {
+
             val xml = Ksoup.parse(body)
 
-            val status = xml.firstElementByTagName("FUSBody")
-                ?.firstElementByTagName("Results")
-                ?.firstElementByTagName("Status")
-                ?.text()
+            val status =
+                xml.firstElementByTagName("FUSBody")
+                    ?.firstElementByTagName("Results")
+                    ?.firstElementByTagName("Status")
+                    ?.text()
 
-            if (status == "401") {
-                return true
-            }
+            status == "401"
+
         } catch (_: Throwable) {
+            false
         }
-
-        return false
     }
 }
 
@@ -262,233 +285,125 @@ object FusClient {
  * Beta 固件探测
  */
 object BetaProbe {
-    private fun incrementBetaVersion(version: String): String {
+
+    /**
+     * 生成下一个 Beta 版本号
+     *
+     * 示例:
+     * ZYF1 -> ZYF2
+     * ZYF9 -> ZYFA
+     * ZYFA -> ZYFB
+     * ZYFZ -> ZYG1
+     */
+    private fun incrementBetaVersion(
+        version: String,
+    ): String {
+
         val chars = version.toCharArray()
 
         for (i in chars.indices.reversed()) {
+
             val c = chars[i]
 
-            if (c in 'A' until 'Z') {
-                chars[i] = c + 1
-                return String(chars)
+            when {
+
+                c in '0' until '9' -> {
+                    chars[i] = c + 1
+                    return String(chars)
+                }
+
+                c == '9' -> {
+                    chars[i] = 'A'
+                    return String(chars)
+                }
+
+                c in 'A' until 'Y' -> {
+                    chars[i] = c + 1
+                    return String(chars)
+                }
+
+                c == 'Z' -> {
+
+                    chars[i] = '1'
+
+                    for (j in i - 1 downTo 0) {
+
+                        val prev = chars[j]
+
+                        if (prev in 'A' until 'Z') {
+
+                            chars[j] = prev + 1
+
+                            return String(chars)
+                        }
+                    }
+                }
             }
         }
 
         return version
     }
 
+    /**
+     * 扫描 Beta 固件
+     */
     suspend fun probeBetas(
         baseVersion: String,
         model: String,
         region: String,
     ): List<String> {
+
         val found = mutableListOf<String>()
 
         var current = baseVersion
 
-        repeat(6) {
+        println("========== START BETA PROBE ==========")
+        println("BASE VERSION: $baseVersion")
+
+        repeat(30) {
+
             current = incrementBetaVersion(current)
 
-            println("Checking: $current")
+            println("CHECKING: $current")
 
-            val result = FusClient.getFirmwareInformation(
-                model = model,
-                region = region,
-                version = current,
-            )
-
-            if (result != null) {
-                println("FOUND: $current")
-                found.add(current)
-            } else {
-                println("NOT FOUND: $current")
-            }
-        }
-
-        return found
-    }
-}
-
-    private fun getDownloadUrl(path: String): String {
-        return "http://cloud-neofussvr.samsungmobile.com/NF_SmartDownloadBinaryForMass.do?file=${path}"
-    }
-
-    /**
-     * Make a request to Samsung, automatically inserting authorization data.
-     * @param request the request to make.
-     * @param data any body data that needs to go into the request.
-     * @return the response body data, as text. Usually XML.
-     */
-    suspend fun makeReq(request: Request, data: String = "", signature: String? = null): String {
-        if (nonce.isBlank() && request != Request.GENERATE_NONCE) {
-            generateNonce()
-        }
-
-        val authV = getAuthV(cloud = request.cloud, signature = signature)
-
-        val response =
-            globalHttpClient.request("https://neofussvr.sslcs.cdngc.net/${request.value}") {
-                method = HttpMethod.Post
-                headers {
-                    append("Authorization", authV)
-                    append("User-Agent", "SMART 2.0")
-                    append("Cookie", "JSESSIONID=${sessionId};SESSION=${sessionId}")
-                    append("Set-Cookie", "JSESSIONID=${sessionId};SESSION=${sessionId}")
-                    append(HttpHeaders.ContentLength, "${data.toByteArray().size}")
-                }
-                setBody(data)
-            }
-
-        val body = response.bodyAsText()
-
-        if (request != Request.GENERATE_NONCE && response.is401(body)) {
-            generateNonce()
-
-            return makeReq(request, data)
-        }
-
-        if (response.headers["NONCE"] != null || response.headers["nonce"] != null) {
             try {
-                nonce = response.headers["NONCE"] ?: response.headers["nonce"] ?: ""
 
-                try {
-                    auth = CryptUtils.decryptNonce(nonce.take(16).padEnd((16 - nonce.length).coerceAtLeast(0), '0'))
-                } catch (_: Exception) {}
-            } catch (e: ArrayIndexOutOfBoundsException) {
-                BugsnagUtils.addBreadcrumb(
-                    message = "Error generating nonce.",
-                    data = mapOf("error" to e),
-                    type = BreadcrumbType.ERROR,
-                )
-                println("Error generating nonce.")
+                val result =
+                    FusClient.getFirmwareInformation(
+                        model = model,
+                        region = region,
+                        version = current,
+                    )
+
+                if (result != null) {
+
+                    println("FOUND BETA: $current")
+
+                    if (!found.contains(current)) {
+                        found.add(current)
+                    }
+
+                } else {
+
+                    println("NOT FOUND: $current")
+                }
+
+            } catch (e: Exception) {
+
+                println("ERROR CHECKING $current")
+
                 e.printStackTrace()
             }
         }
 
-        if (response.headers["Set-Cookie"] != null || response.headers["set-cookie"] != null) {
-            sessionId = response.headers.entries()
-                .firstNotNullOfOrNull { headers ->
-                    headers.value.find { value ->
-                        value.contains("JSESSIONID=") ||
-                                value.contains("SESSION=")
-                    }
-                }
-                ?.replace("JSESSIONID=", "")
-                ?.replace("SESSION=", "")
-                ?.replace(Regex(";.*$"), "")
-                ?: sessionId
+        println("========== BETA RESULT ==========")
+
+        found.forEach {
+            println("FOUND: $it")
         }
 
-        return body
-    }
+        println("=================================")
 
-    /**
-     * Download a file from Samsung's server.
-     * @param fileName the name of the file to download.
-     * @param start an optional offset. Used for resuming downloads.
-     */
-    @OptIn(InternalAPI::class, InternalIoApi::class)
-    suspend fun downloadFile(
-        fileName: String,
-        start: Long = 0,
-        size: Long,
-        dest: IPlatformFile,
-        progressCallback: suspend (current: Long, max: Long, bps: Long) -> Unit,
-    ): String? {
-        val authV = getAuthV(cloud = true)
-        val url = getDownloadUrl(fileName)
-
-        val md5Request = globalHttpClient.prepareRequest {
-            method = HttpMethod.Get
-            url(url)
-            headers {
-                append("Authorization", authV)
-                append("User-Agent", "SMART 2.0")
-                if (start > 0) {
-                    append("Range", "bytes=${start}-")
-                }
-            }
-            timeout {
-                this.requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
-                this.socketTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
-                this.connectTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
-            }
-        }
-
-        val md5 = md5Request.execute { response ->
-            response.headers["Content-MD5"]
-        }
-
-        val task = ketch.tasks.value.find { it.request.url == url }
-            ?.let { download ->
-                download.resume(Destination(dest.getAbsolutePath()))
-                download.takeIf {
-                    it.state.value !is DownloadState.Completed
-                }
-            } ?: ketch.download(
-            DownloadRequest(
-                url = url,
-                destination = Destination(dest.getAbsolutePath()),
-                headers = mapOf(
-                    "Authorization" to authV.also { println(it) },
-                    "User-Agent" to "SMART 2.0",
-                    "Cache-Control" to "no-cache",
-                ),
-            ),
-        )
-
-        CoroutineScope(currentCoroutineContext()).launch(Dispatchers.IO) {
-            task.state.collect {
-                if (it is DownloadState.Downloading) {
-                    progressCallback(
-                        it.progress.downloadedBytes,
-                        size,
-                        it.progress.bytesPerSecond,
-                    )
-                }
-            }
-        }
-
-        try {
-            while (true) {
-                val result = task.await()
-
-                if (result.isSuccess) {
-                    break
-                }
-
-                (result.exceptionOrNull() as? KetchError)?.let { error ->
-                    if (!error.isRetryable) {
-                        throw error
-                    }
-                }
-            }
-        } catch (_: CancellationException) {
-            task.pause()
-        }
-
-        return md5
-    }
-
-    private fun HttpResponse.is401(body: String): Boolean {
-        if (status.value == 401) {
-            return true
-        }
-
-        try {
-            val xml = Ksoup.parse(body)
-
-            val status = xml.firstElementByTagName("FUSBody")
-                ?.firstElementByTagName("Results")
-                ?.firstElementByTagName("Status")
-                ?.text()
-
-            if (status == "401") {
-                return true
-            }
-        } catch (_: Throwable) {
-        }
-
-        return false
+        return found
     }
 }
