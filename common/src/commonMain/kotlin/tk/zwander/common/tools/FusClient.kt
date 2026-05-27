@@ -1,5 +1,3 @@
-@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE", "EXPOSED_PARAMETER_TYPE")
-
 package tk.zwander.common.tools
 
 import com.fleeksoft.io.exception.ArrayIndexOutOfBoundsException
@@ -41,8 +39,14 @@ import tk.zwander.common.util.ketch
 object FusClient {
     enum class Request(val value: String, val cloud: Boolean) {
         GENERATE_NONCE("NF_SmartDownloadGenerateNonce.do", false),
+
+        // 固件信息查询
         BINARY_INFORM("NF_SmartDownloadBinaryInform.do", false),
+
+        // 固件初始化
         BINARY_INIT("NF_SmartDownloadBinaryInitForMass.do", false),
+
+        // 历史版本
         HISTORY("SmartHistory.do", false),
     }
 
@@ -65,13 +69,17 @@ object FusClient {
             data = mapOf(),
             type = BreadcrumbType.LOG,
         )
+
         println("Generating nonce.")
+
         makeReq(Request.GENERATE_NONCE)
+
         BugsnagUtils.addBreadcrumb(
             message = "Nonce: $nonce, Auth: $auth",
             data = mapOf(),
             type = BreadcrumbType.LOG,
         )
+
         println("Nonce: $nonce")
         println("Auth: $auth")
     }
@@ -80,28 +88,226 @@ object FusClient {
         if (signature == null) return null
 
         val hasher = CryptUtils.md5Provider.hasher()
+
         val a = hasher.hash("auth:$nonce:00000001".toByteArray()).toHexString()
         val b = hasher.hash("interface:$signature".toByteArray()).toHexString()
 
         return hasher.hash("$a:FUS:$b".toByteArray()).toHexString()
     }
 
-    private suspend fun getAuthV(includeNonce: Boolean = true, signature: String? = null, cloud: Boolean = false): String {
+    private suspend fun getAuthV(
+        includeNonce: Boolean = true,
+        signature: String? = null,
+        cloud: Boolean = false
+    ): String {
         val hasSignature = !signature.isNullOrBlank()
+
         val nonce = when {
             includeNonce && hasSignature -> {
                 val chars = "abcdefghijklmnopqrstuvwxyz0123456789"
                 CharArray(16) { chars.random() }.joinToString("")
             }
-            includeNonce -> nonce
+
+            includeNonce -> this.nonce
             else -> ""
         }
+
         return "FUS nonce=\"${if (cloud) nonce else this.nonce}\", " +
                 "signature=\"${makeSignatureHash(signature?.takeIf { !it.isBlank() }) ?: this.auth}\", " +
                 "nc=\"${if (hasSignature) "00000001" else ""}\", " +
                 "type=\"${if (hasSignature) "auth" else ""}\", " +
                 "realm=\"${if (hasSignature) "interface" else ""}\""
     }
+
+    private fun getDownloadUrl(path: String): String {
+        return "http://cloud-neofussvr.samsungmobile.com/NF_SmartDownloadBinaryForMass.do?file=${path}"
+    }
+
+    /**
+     * 发起固件信息查询
+     */
+    suspend fun getFirmwareInformation(
+        model: String,
+        region: String,
+        version: String
+    ): String? {
+        val xml = """
+            <FUSMsg>
+                <FUSHdr>
+                    <ProtoVer>1</ProtoVer>
+                    <SessionID>0</SessionID>
+                    <MsgID>1</MsgID>
+                </FUSHdr>
+
+                <FUSBody>
+                    <Put>
+                        <ACCESS_MODE Data="1"/>
+                        <BINARY_NATURE Data="1"/>
+                        <CLIENT_PRODUCT Data="Smart Switch"/>
+                        <DEVICE_FW_VERSION Data="$version"/>
+                        <DEVICE_LOCAL_CODE Data="$region"/>
+                        <DEVICE_MODEL_NAME Data="$model"/>
+                    </Put>
+                </FUSBody>
+            </FUSMsg>
+        """.trimIndent()
+
+        return try {
+            val response = makeReq(
+                request = Request.BINARY_INFORM,
+                data = xml,
+                signature = model
+            )
+
+            println("========== FUS RESPONSE ==========")
+            println(response)
+            println("==================================")
+
+            if (
+                response.contains("BINARY_NAME") ||
+                response.contains("BINARY_BYTE_SIZE") ||
+                response.contains("MODEL_PATH")
+            ) {
+                response
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun makeReq(
+        request: Request,
+        data: String = "",
+        signature: String? = null
+    ): String {
+        if (nonce.isBlank() && request != Request.GENERATE_NONCE) {
+            generateNonce()
+        }
+
+        val authV = getAuthV(
+            cloud = request.cloud,
+            signature = signature
+        )
+
+        val response =
+            globalHttpClient.request("https://neofussvr.sslcs.cdngc.net/${request.value}") {
+                method = HttpMethod.Post
+
+                headers {
+                    append("Authorization", authV)
+                    append("User-Agent", "SMART 2.0")
+                    append("Cookie", "JSESSIONID=${sessionId};SESSION=${sessionId}")
+                    append("Set-Cookie", "JSESSIONID=${sessionId};SESSION=${sessionId}")
+                    append(HttpHeaders.ContentLength, "${data.toByteArray().size}")
+                }
+
+                setBody(data)
+            }
+
+        val body = response.bodyAsText()
+
+        if (request != Request.GENERATE_NONCE && response.is401(body)) {
+            generateNonce()
+            return makeReq(request, data)
+        }
+
+        if (response.headers["NONCE"] != null || response.headers["nonce"] != null) {
+            try {
+                nonce = response.headers["NONCE"]
+                    ?: response.headers["nonce"]
+                    ?: ""
+
+                try {
+                    auth = CryptUtils.decryptNonce(
+                        nonce.take(16)
+                            .padEnd((16 - nonce.length).coerceAtLeast(0), '0')
+                    )
+                } catch (_: Exception) {
+                }
+            } catch (e: ArrayIndexOutOfBoundsException) {
+                e.printStackTrace()
+            }
+        }
+
+        return body
+    }
+
+    private fun HttpResponse.is401(body: String): Boolean {
+        if (status.value == 401) {
+            return true
+        }
+
+        try {
+            val xml = Ksoup.parse(body)
+
+            val status = xml.firstElementByTagName("FUSBody")
+                ?.firstElementByTagName("Results")
+                ?.firstElementByTagName("Status")
+                ?.text()
+
+            if (status == "401") {
+                return true
+            }
+        } catch (_: Throwable) {
+        }
+
+        return false
+    }
+}
+
+/**
+ * Beta 固件探测
+ */
+object BetaProbe {
+    private fun incrementBetaVersion(version: String): String {
+        val chars = version.toCharArray()
+
+        for (i in chars.indices.reversed()) {
+            val c = chars[i]
+
+            if (c in 'A' until 'Z') {
+                chars[i] = c + 1
+                return String(chars)
+            }
+        }
+
+        return version
+    }
+
+    suspend fun probeBetas(
+        baseVersion: String,
+        model: String,
+        region: String,
+    ): List<String> {
+        val found = mutableListOf<String>()
+
+        var current = baseVersion
+
+        repeat(6) {
+            current = incrementBetaVersion(current)
+
+            println("Checking: $current")
+
+            val result = FusClient.getFirmwareInformation(
+                model = model,
+                region = region,
+                version = current,
+            )
+
+            if (result != null) {
+                println("FOUND: $current")
+                found.add(current)
+            } else {
+                println("NOT FOUND: $current")
+            }
+        }
+
+        return found
+    }
+}
 
     private fun getDownloadUrl(path: String): String {
         return "http://cloud-neofussvr.samsungmobile.com/NF_SmartDownloadBinaryForMass.do?file=${path}"
