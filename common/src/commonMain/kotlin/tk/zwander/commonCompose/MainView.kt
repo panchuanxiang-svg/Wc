@@ -27,8 +27,25 @@ import tk.zwander.commonCompose.view.LocalUseTransparencyEffects
 import tk.zwander.commonCompose.view.components.BifrostTheme
 import tk.zwander.commonCompose.view.components.TabView
 import tk.zwander.commonCompose.view.components.pages
-import tk.zwander.commonCompose.BetaMode
 import kotlin.time.ExperimentalTime
+
+/**
+ * BetaMode 页面
+ */
+@Composable
+fun BetaMode() {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+
+        }
+    }
+}
 
 /**
  * The main UI view.
@@ -75,6 +92,7 @@ fun MainView(
                         .fillMaxSize()
                         .padding(fullPadding),
                 ) {
+
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -84,11 +102,12 @@ fun MainView(
 
                         HorizontalPager(
                             state = pagerState,
+                            pageCount = pages.size + 1,
                             pageSpacing = 8.dp,
                             userScrollEnabled =
                                 HostOS.current == HostOS.Android ||
                                 HostOS.current == HostOS.IOS,
-                            beyondViewportPageCount = pagerState.pageCount,
+                            beyondViewportPageCount = pages.size + 1,
                         ) {
 
                             if (it < pages.size) {
