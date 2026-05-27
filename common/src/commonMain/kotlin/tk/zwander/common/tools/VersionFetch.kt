@@ -1,3 +1,55 @@
+object VersionFetch {
+    
+    // ... (之前的 hybridGetLatestVersion, getLatestVersion 等方法保持不变) ...
+
+    /**
+     * 递增 Beta 版本字符串 (例如 ZYEA -> ZYEB)
+     */
+    private fun incrementBetaVersion(version: String): String {
+        val chars = version.toCharArray()
+        for (i in chars.indices.reversed()) {
+            val c = chars[i]
+            if (c in 'A' until 'Z') {
+                chars[i] = c + 1
+                return String(chars)
+            }
+        }
+        return version
+    }
+
+    /**
+     * 探测后续可能的 Beta 版本
+     */
+    suspend fun probeNextBetas(
+        currentVersion: String,
+        model: String,
+        region: String,
+    ): List<String> {
+        val found = mutableListOf<String>()
+        var next = currentVersion
+
+        repeat(5) {
+            next = incrementBetaVersion(next)
+            try {
+                // 注意：这里调用了 FusClient.getFirmwareInformation
+                // 如果你的项目中此方法路径不同，请确保导入正确
+                val result = FusClient.getFirmwareInformation(
+                    model = model,
+                    region = region,
+                    version = next,
+                )
+                if (result != null) {
+                    found.add(next)
+                }
+            } catch (_: Exception) {
+                return found
+            }
+        }
+        return found
+    }
+
+    // ... (之前的 parseHistoryInfos 和其他方法保持不变) ...
+    
     fun parseHistoryInfos(
         historyDoc: Document,
     ): List<SmartBinaryInfo> {
@@ -28,7 +80,6 @@
                 category = info.firstDataElementDataByTagName("BINARY_CATEGORY"),
                 open = info.firstDataElementDataByTagName("AID_OPEN")?.toIntOrNull(),
             )
-        }
-            // ✅ 修改：删除 filterNot，保留所有版本 (包括 Beta)
-            .sortedBy { it.sequence }
+        }.sortedBy { it.sequence }
     }
+}
