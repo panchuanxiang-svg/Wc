@@ -2,6 +2,7 @@
 @Composable
 internal fun DownloadView() {
     val model = LocalDownloadModel.current
+
     val hasRunningJobs by model.hasRunningJobs.collectAsState(false)
     var manual by model.manual.collectAsMutableState()
 
@@ -12,17 +13,17 @@ internal fun DownloadView() {
     val region by model.region.collectAsState()
     val fw by model.fw.collectAsState()
 
-    // ✅ 先拿 betaInfo（必须在 selectedBeta 前）
-    val betaInfo by produceState<BetaInfo?>(initialValue = null, modelModel, region) {
-        value = null
-        if (modelModel.isNotBlank() && region.isNotBlank()) {
-            value = BetaMode.getBetaInfo(modelModel, region)
-        }
-    }
-
-    // ✅ 选择状态（只跟机型/地区绑定）
+    // ✅ 关键：选中版本（随机型/地区变化重置）
     var selectedBeta by remember(modelModel, region) {
         mutableStateOf<String?>(null)
+    }
+
+    // ✅ 拉取 Beta 数据（随机型/地区刷新）
+    val betaInfo by produceState<BetaInfo?>(initialValue = null, modelModel, region) {
+        value =
+            if (modelModel.isNotBlank() && region.isNotBlank()) {
+                BetaMode.getBetaInfo(modelModel, region)
+            } else null
     }
 
     val canCheckVersion =
@@ -31,12 +32,22 @@ internal fun DownloadView() {
     val canDownload =
         modelModel.isNotBlank() && region.isNotBlank() && fw.isNotBlank() && !hasRunningJobs
 
+    val canChangeOption = !hasRunningJobs
+
+    val scope = rememberCoroutineScope()
+
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(8.dp)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
     ) {
+
+        // =========================
+        // 按钮区
+        // =========================
 
         HybridButton(
             onClick = {
@@ -50,16 +61,69 @@ internal fun DownloadView() {
                 }
             },
             enabled = canCheckVersion,
-            text = "检查更新"
+            text = "检查更新",
+            description = "获取最新版本",
+            vectorIcon = painterResource(MR.images.refresh),
+            parentSize = 1000
         )
 
         Spacer(Modifier.height(8.dp))
 
-        // ✅ Beta 列表 UI
-        AnimatedVisibility(visible = betaMode && betaInfo?.betaList?.isNotEmpty() == true) {
+        HybridButton(
+            onClick = {
+                model.launchJob {
+                    Downloader.onDownload(model)
+                }
+            },
+            enabled = canDownload,
+            text = "下载",
+            description = "下载固件",
+            vectorIcon = painterResource(MR.images.download),
+            parentSize = 1000
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        // =========================
+        // Beta / 增量选择
+        // =========================
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+
+            Checkbox(
+                checked = betaMode,
+                onCheckedChange = {
+                    betaMode = it
+                    if (it) incrementalMode = false
+                }
+            )
+            Text("Beta 测试版本")
+
+            Spacer(Modifier.width(12.dp))
+
+            Checkbox(
+                checked = incrementalMode,
+                onCheckedChange = {
+                    incrementalMode = it
+                    if (it) betaMode = false
+                }
+            )
+            Text("增量更新")
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        // =========================
+        // Beta 列表 UI（核心）
+        // =========================
+
+        AnimatedVisibility(
+            visible = betaMode && betaInfo?.betaList.isNullOrEmpty().not()
+        ) {
+
             Column {
 
-                Text(text = "Beta 版本列表")
+                Text("可选 Beta 版本")
 
                 Spacer(Modifier.height(6.dp))
 
@@ -68,7 +132,9 @@ internal fun DownloadView() {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { selectedBeta = version }
+                            .clickable {
+                                selectedBeta = version
+                            }
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -86,6 +152,15 @@ internal fun DownloadView() {
                     }
                 }
             }
+        }
+
+        // =========================
+        // 提示信息
+        // =========================
+
+        if (betaMode && betaInfo?.betaList.isNullOrEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text("暂无 Beta 版本", color = MaterialTheme.colorScheme.error)
         }
     }
 }
