@@ -26,15 +26,13 @@ jobs:
 
       - name: Build Android
         run: |
-          # 关键点：在根目录执行，通过 :android: 前缀指定构建子模块
-          ./gradlew :android:clean :android:assembleDebug \
-          --refresh-dependencies \
-          --no-build-cache \
-          --stacktrace
+          # 不使用 :android: 前缀，直接在根目录构建
+          # 在 KMP 项目中，assembleDebug 通常会自动构建所有包含 Android 的模块
+          ./gradlew clean assembleDebug --refresh-dependencies --no-build-cache --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk
-          # APK 的生成路径通常在子模块的 build 目录下
+          # APK 通常会被生成在 android/build/outputs/apk/debug/ 下
           path: android/build/outputs/apk/debug/*.apk
