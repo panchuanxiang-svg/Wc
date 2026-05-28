@@ -1,10 +1,6 @@
-name: Android CI
+name: Manual Build CI
 
 on:
-  push:
-    branches: [ "master", "main" ]
-  pull_request:
-    branches: [ "master", "main" ]
   workflow_dispatch:
 
 jobs:
@@ -24,23 +20,33 @@ jobs:
           distribution: 'zulu'
           cache: gradle
 
-      - name: Change Wrapper Permissions
+      - name: Grant Gradle Permission
         run: chmod +x gradlew
 
-      # 核心编译步骤：这里已经为你加上了彻底清除缓存、强制刷新网络依赖的命令
-      - name: Build with Gradle
-        run: ./gradlew clean assembleDebug --no-build-cache --refresh-dependencies
+      - name: Clean Project
+        run: ./gradlew clean --no-build-cache
 
-      - name: Upload Android Debug APK
+      - name: Build Android APK
+        run: |
+          ./gradlew assembleDebug \
+          --refresh-dependencies \
+          --stacktrace \
+          --no-build-cache
+
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk
           path: android/build/outputs/apk/debug/*.apk
 
       - name: Build Desktop Package
-        run: ./gradlew :desktop:packageDistributionForCurrentOS
+        run: |
+          ./gradlew :desktop:packageDistributionForCurrentOS \
+          --refresh-dependencies \
+          --stacktrace \
+          --no-build-cache
 
-      - name: Upload Desktop Artifacts
+      - name: Upload Desktop Package
         uses: actions/upload-artifact@v4
         with:
           name: desktop-distribution
