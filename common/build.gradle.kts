@@ -1,12 +1,19 @@
 plugins {
-    id("org.jetbrains.kotlin.multiplatform")
-    id("com.android.library")
-    id("org.jetbrains.kotlin.plugin.serialization")
-    id("org.jetbrains.compose")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.compose)
 }
 
 kotlin {
-    androidTarget()
+    // 👈 核心修改：让多平台编译出的 Android 库版本与 App 外壳完全对齐
+    androidTarget {
+        compilations.all {
+            kotlinOptions {
+                jvmTarget = "21"
+            }
+        }
+    }
 
     jvm("desktop")
 
@@ -14,7 +21,6 @@ kotlin {
     iosSimulatorArm64()
 
     sourceSets {
-
         val commonMain by getting {
             dependencies {
                 implementation(compose.runtime)
@@ -51,8 +57,10 @@ kotlin {
         val iosMain by creating {
             dependsOn(commonMain)
 
-            iosArm64Main.dependsOn(iosMain)
-            iosSimulatorArm64Main.dependsOn(iosMain)
+            val iosArm64Main by getting
+            val iosSimulatorArm64Main by getting
+            iosArm64Main.dependsOn(this)
+            iosSimulatorArm64Main.dependsOn(this)
 
             dependencies {
                 implementation("io.ktor:ktor-client-darwin:2.3.12")
