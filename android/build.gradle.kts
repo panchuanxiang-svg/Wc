@@ -1,9 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
-    
-    // 👈 核心修改：把原来的 alias(libs.plugins.kotlin.android) 改成下面这行
-    id("org.jetbrains.kotlin.android") 
-    
+    id("org.jetbrains.kotlin.android")
     alias(libs.plugins.compose)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.moko.resources)
@@ -27,11 +24,9 @@ android {
         isCoreLibraryDesugaringEnabled = true  
     }
 
-    kotlinOptions {
-        jvmTarget = "21"
-        freeCompilerArgs += listOf(
-            "-Xskip-prerelease-check",
-            "-Xdont-warn-on-error-suppression"
-        )
+    // 🟢 核心修改：将旧的 kotlinOptions 改为满足 Kotlin 2.0+ 规范的 compilerOptions
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+        freeCompilerArgs.addAll("-Xskip-prerelease-check", "-Xdont-warn-on-error-suppression")
     }
 }
