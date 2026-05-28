@@ -1,11 +1,8 @@
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.compose)
-    alias(libs.plugins.moko.resources)
-    alias(libs.plugins.kotlinx.serialization)
-    alias(libs.plugins.buildkonfig)
+    id("org.jetbrains.kotlin.multiplatform")
+    id("com.android.library")
+    id("org.jetbrains.kotlin.plugin.serialization")
+    id("org.jetbrains.compose")
 }
 
 kotlin {
@@ -16,76 +13,72 @@ kotlin {
             }
         }
     }
-    
+
     jvm("desktop")
 
-    listOf(
-        iosArm64(),
-        iosSimulatorArm64()
-    ).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "common"
-            isStatic = true
-        }
-    }
+    iosArm64()
+    iosSimulatorArm64()
 
     sourceSets {
+
         val commonMain by getting {
             dependencies {
-                api(libs.compose.foundation)
-                api(libs.compose.material3)
-                api(libs.compose.runtime)
-                api(libs.compose.ui)
-                api(libs.material.icons.core)
-                api(libs.kotlin)
-                api(libs.kotlin.reflect)
-                api(libs.kotlinx.coroutines)
-                api(libs.kotlinx.datetime)
-                api(libs.kotlinx.io.core)
-                api(libs.kotlinx.serialization.json)
-                api(libs.ksoup)
 
-                // ✅ KTOR 跨平台核心依赖（已彻底移除 cio，让各平台自动适配）
-                api(libs.ktor.client.core)
-                api(libs.ktor.client.content.negotiation)
-                api(libs.ktor.serialization.kotlinx.json)
-                api(libs.ktor.client.auth)
+                // Compose
+                implementation(compose.runtime)
+                implementation(compose.foundation)
+                implementation(compose.material3)
+                implementation(compose.ui)
 
-                api(libs.moko.resources)
-                api(libs.moko.resources.compose)
-                api(libs.multiplatformSettings)
-                api(libs.multiplatformSettings.noArg)
-                api(libs.richeditor.compose)
-                api(libs.semver)
-                api(libs.filekit.core)
-                api(libs.filekit.dialogs.compose)
-                api(libs.kmpfile)
-                api(libs.kmpplatform)
-                api(libs.zwander.composedialog)
-                api(libs.zwander.materialyou)
-                api(libs.csv)
-                api(libs.cryptography.core)
-                api(libs.kotlinx.crypto.crc32)
-                api(libs.kotlinx.atomicfu)
-                api(libs.androidx.performance.annotation)
-                api(libs.xmlbuilder)
-                api(libs.ketch.core)
-                api(libs.ketch.ktor)
-                api(libs.ketch.sqlite)
+                // Kotlin
+                implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.21")
+
+                // Coroutines
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+
+                // Serialization
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+
+                // Datetime
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
+
+                // Ktor
+                implementation("io.ktor:ktor-client-core:2.3.12")
+                implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
+                implementation("io.ktor:ktor-client-auth:2.3.12")
+
+                // Ksoup
+                implementation("com.mohamedrejeb.ksoup:ksoup:0.2.1")
             }
         }
 
         val androidMain by getting {
             dependencies {
-                // 如果你需要特定给 Android 端用的 Ktor 引擎，可以加上这一行：
-                // implementation("io.ktor:ktor-client-okhttp:2.3.12")
+
+                // Android Ktor Engine
+                implementation("io.ktor:ktor-client-okhttp:2.3.12")
             }
         }
 
         val desktopMain by getting {
             dependencies {
-                // 如果你需要特定给 Desktop 端用的 Ktor 引擎，可以加上这一行：
-                // implementation("io.ktor:ktor-client-cio:2.3.12")
+
+                // Desktop Ktor Engine
+                implementation("io.ktor:ktor-client-cio:2.3.12")
+            }
+        }
+
+        val iosMain by creating {
+            dependsOn(commonMain)
+
+            iosArm64Main.dependsOn(iosMain)
+            iosSimulatorArm64Main.dependsOn(iosMain)
+
+            dependencies {
+
+                // iOS Ktor Engine
+                implementation("io.ktor:ktor-client-darwin:2.3.12")
             }
         }
     }
@@ -93,6 +86,7 @@ kotlin {
 
 android {
     namespace = "tk.zwander.common"
+
     compileSdk = 34
 
     defaultConfig {
@@ -102,13 +96,5 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-}
-
-// 如果你用了 buildkonfig 插件，这里可以保留你的配置，没有的话保持默认即可
-buildkonfig {
-    packageName = "tk.zwander.common"
-    defaultConfigs {
-        // 可以在这里放你的配置项
     }
 }
