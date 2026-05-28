@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose)
@@ -10,35 +8,28 @@ plugins {
 group = rootProject.extra["groupName"].toString()
 version = rootProject.extra["versionName"].toString()
 
-dependencies {
-    implementation(project(":common"))
-    coreLibraryDesugaring(libs.desugar.jdk.libs)
-}
-
 android {
-    val compileSdk: Int by rootProject.extra
+    val compileSdkVal: Int by rootProject.extra
     val packageName: String by rootProject.extra
 
-    this.compileSdk = compileSdk
+    compileSdk = compileSdkVal
+    namespace = packageName
 
     defaultConfig {
         applicationId = packageName
 
-        val minSdk: Int by rootProject.extra
-        val targetSdk: Int by rootProject.extra
-        val versionCode: Int by rootProject.extra
-        val versionName: String by rootProject.extra
+        val minSdkVal: Int by rootProject.extra
+        val targetSdkVal: Int by rootProject.extra
+        val versionCodeVal: Int by rootProject.extra
+        val versionNameVal: String by rootProject.extra
 
-        this.minSdk = minSdk
-        this.targetSdk = targetSdk
+        minSdk = minSdkVal
+        targetSdk = targetSdkVal
+        versionCode = versionCodeVal
+        versionName = versionNameVal
 
-        this.versionCode = versionCode
-        this.versionName = versionName
-
-        resValue("string", "app_name", "${rootProject.extra["appName"]}")
+        resValue("string", "app_name", rootProject.extra["appName"].toString())
     }
-
-    namespace = packageName
 
     buildFeatures {
         compose = true
@@ -46,50 +37,17 @@ android {
         resValues = true
     }
 
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            isShrinkResources = false
-        }
-        debug {
-            isMinifyEnabled = false
-            isShrinkResources = false
-        }
-    }
-
     compileOptions {
-        val javaVersionEnum: JavaVersion by rootProject.extra
-        sourceCompatibility = javaVersionEnum
-        targetCompatibility = javaVersionEnum
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
         isCoreLibraryDesugaringEnabled = true
     }
 
-    lint {
-        abortOnError = false
+    kotlinOptions {
+        jvmTarget = "21"
     }
 
     packaging {
         resources.excludes.add("META-INF/versions/9/previous-compilation-data.bin")
-    }
-
-    androidResources {
-        @Suppress("UnstableApiUsage")
-        generateLocaleConfig = true
-    }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.fromTarget(rootProject.extra["javaVersionEnum"].toString()))
-    }
-}
-
-multiplatformResources {
-    resourcesPackage.set("tk.zwander.samloaderkotlin.android")
-}
-
-afterEvaluate {
-    base {
-        archivesName.set("bifrost_android_${android.defaultConfig.versionName}")
     }
 }
