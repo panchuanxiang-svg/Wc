@@ -1,7 +1,7 @@
 [versions]
-android-gradle = "9.2.1"
-androidx-activity-compose = "1.13.0"
-androidx-core = "1.18.0"
+android-gradle = "8.7.3"
+androidx-activity-compose = "1.9.3"
+androidx-core = "1.15.0"
 androidx-documentfile = "1.1.0"
 androidx-performance-annotation = "1.0.0-alpha01"
 androidx-preference = "1.2.1"
@@ -10,8 +10,8 @@ bugsnag-android = "6.26.0"
 bugsnag-gradle = "1.1.0"
 bugsnag-jvm = "4.0.0"
 buildkonfig-gradle = "0.20.0"
-compose = "1.11.0"
-compose-material3 = "1.11.0-alpha07"
+compose = "1.7.0"
+compose-material3 = "1.3.0"
 compose-hot-reload = "1.1.1"
 composedialog = "0.2.1"
 conveyor = "2.0"
@@ -29,15 +29,15 @@ jsystemthemedetector = "dc3ca477a9"
 ketch = "0.0.1-rc9"
 kmpfile = "0.8.0"
 kmpplatform = "0.1.0"
-kotlin = "2.3.21"
+kotlin = "2.0.21"
 kotlinx-atomicfu = "0.32.1"
-kotlinx-coroutines = "1.11.0"
-kotlinx-datetime = "0.8.0"
-kotlinx-io = "0.9.0"
-kotlinx-serialization = "1.11.0"
+kotlinx-coroutines = "1.9.0"
+kotlinx-datetime = "0.6.1"
+kotlinx-io = "0.6.0"
+kotlinx-serialization = "1.7.3"
 kotlinxCryptoCrc32 = "0.0.4"
 ksoup = "0.2.6"
-ktor = "3.5.0"
+ktor = "2.3.12"
 material-icons-core = "1.7.3"
 materialyou = "0.4.0"
 moko-resources = "0.26.4"
@@ -62,19 +62,11 @@ appdirs = { module = "net.harawata:appdirs", version.ref = "appdirs" }
 bugsnag-android = { module = "com.bugsnag:bugsnag-android", version.ref = "bugsnag-android" }
 bugsnag-jvm = { module = "com.bugsnag:bugsnag", version.ref = "bugsnag-jvm" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
-compose-linux-arm64 = { module = "org.jetbrains.compose.desktop:desktop-jvm-linux-arm64", version.ref = "compose" }
-compose-linux-x64 = { module = "org.jetbrains.compose.desktop:desktop-jvm-linux-x64", version.ref = "compose" }
-compose-macos-arm64 = { module = "org.jetbrains.compose.desktop:desktop-jvm-macos-arm64", version.ref = "compose" }
-compose-macos-x64 = { module = "org.jetbrains.compose.desktop:desktop-jvm-macos-x64", version.ref = "compose" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
-compose-windows-arm64 = { module = "org.jetbrains.compose.desktop:desktop-jvm-windows-arm64", version.ref = "compose" }
-compose-windows-x64 = { module = "org.jetbrains.compose.desktop:desktop-jvm-windows-x64", version.ref = "compose" }
-conveyor-control = { module = "dev.hydraulic.conveyor:conveyor-control", version.ref = "conveyor-control" }
 cryptography-core = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "cryptography" }
 cryptography-provider-jdk = { module = "dev.whyoleg.cryptography:cryptography-provider-jdk", version.ref = "cryptography" }
-cryptography-provider-openssl3-prebuilt = { module = "dev.whyoleg.cryptography:cryptography-provider-openssl3-prebuilt", version.ref = "cryptography" }
 csv = { module = "de.halfbit:csv", version.ref = "csv" }
 desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs_nio", version.ref = "desugar_jdk_libs" }
 filekit-core = { module = "io.github.vinceglb:filekit-core", version.ref = "filekit" }
@@ -91,7 +83,6 @@ ketch-ktor = { module = "com.linroid.ketch:ktor", version.ref = "ketch" }
 ketch-sqlite = { module = "com.linroid.ketch:sqlite", version.ref = "ketch" }
 kmpfile = { module = "dev.zwander:kmpfile", version.ref = "kmpfile" }
 kmpplatform = { module = "dev.zwander:kmpplatform", version.ref = "kmpplatform" }
-kotlin = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk8", version.ref = "kotlin" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "kotlinx-atomicfu" }
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
@@ -106,6 +97,7 @@ ktor-client-auth = { module = "io.ktor:ktor-client-auth", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 material-icons-core = { module = "org.jetbrains.compose.material:material-icons-core", version.ref = "material-icons-core" }
 moko-resources = { module = "dev.icerock.moko:resources", version.ref = "moko-resources" }
 moko-resources-compose = { module = "dev.icerock.moko:resources-compose", version.ref = "moko-resources" }
@@ -118,7 +110,7 @@ richeditor-compose = { module = "com.mohamedrejeb.richeditor:richeditor-compose"
 semver = { module = "io.github.z4kn4fein:semver", version.ref = "semver" }
 slf4j = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 vaqua = { module = "org.violetlib:vaqua", version.ref = "vaqua" }
-window-styler = { module = "com.github.zacharee.ComposeWindowStyler:window-styler", version.ref = "windowStyler" }
+window-styler = { module = "com.github.zacharee:ComposeWindowStyler", version.ref = "windowStyler" }
 xmlbuilder = { module = "dev.zwander:xmlbuilder", version.ref = "xmlbuilder" }
 zwander-composedialog = { module = "dev.zwander:composedialog", version.ref = "composedialog" }
 zwander-materialyou = { module = "dev.zwander:materialyou", version.ref = "materialyou" }
@@ -129,12 +121,6 @@ android-library = { id = "com.android.library", version.ref = "android-gradle" }
 bugsnag-gradle = { id = "com.bugsnag.gradle", version.ref = "bugsnag-gradle" }
 buildkonfig = { id = "com.codingfeline.buildkonfig", version.ref = "buildkonfig-gradle" }
 compose = { id = "org.jetbrains.compose", version.ref = "compose" }
-compose-hot-reload = { id = "org.jetbrains.compose.hot-reload", version.ref = "compose-hot-reload" }
-conveyor = { id = "dev.hydraulic.conveyor", version.ref = "conveyor" }
-kotlin-atomicfu = { id = "org.jetbrains.kotlin.plugin.atomicfu", version.ref = "kotlin" }
-kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-kotlin-multiplatform-android-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "android-gradle" }
-kotlin-native-cocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-moko-resources = { id = "dev.icerock.mobile.multiplatform-resources", version.ref = "moko-resources" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
