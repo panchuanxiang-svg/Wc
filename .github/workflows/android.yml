@@ -1,6 +1,5 @@
 name: Android CI (Manual Trigger)
 
-# 只允许手动触发
 on:
   workflow_dispatch:
 
@@ -9,14 +8,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ✅ 检出 MAST 分支
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          ref: MAST
+          ref: Master
           fetch-depth: 0
 
-      # ✅ 设置 JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -24,15 +21,12 @@ jobs:
           java-version: 17
           cache: gradle
 
-      # ✅ 给 gradlew 执行权限
       - name: Grant Execute Permission
         run: chmod +x gradlew
 
-      # ✅ 构建 APK
       - name: Build APK
         run: ./gradlew clean assembleDebug --refresh-dependencies --no-build-cache
 
-      # ✅ 上传 APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
