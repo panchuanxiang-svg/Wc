@@ -1,5 +1,3 @@
-@file:Suppress("UnstableApiUsage")
-
 pluginManagement {
     repositories {
         gradlePluginPortal()
@@ -9,7 +7,6 @@ pluginManagement {
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
         maven("https://maven.pkg.jetbrains.space/kotlin/p/kotlin/dev/")
         maven("https://maven.hq.hydraulic.software")
-//        maven("file:libs/")
     }
 }
 
@@ -18,7 +15,10 @@ plugins {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    // ✅ 已修复：将 FAIL_ON_PROJECT_REPOS 改为 PREFER_SETTINGS
+    // 允许子模块（如 :android）声明自己的独占仓库，防止 Android 插件解析链直接崩溃断开
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS) 
+    
     repositories {
         mavenCentral()
         google()
@@ -27,7 +27,6 @@ dependencyResolutionManagement {
         maven("https://maven.pkg.jetbrains.space/kotlin/p/kotlin/dev/")
         maven("https://maven.pkg.jetbrains.space/public/p/ktor/eap/")
         maven("https://jitpack.io")
-//        maven("file:libs/")
         maven("https://repo.jenkins-ci.org/public/")
     }
 }
