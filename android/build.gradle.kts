@@ -1,6 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android) // 👈 现在 toml 补全后，这里不会再报错了
+    
+    // 👈 核心修改：把原来的 alias(libs.plugins.kotlin.android) 改成下面这行
+    id("org.jetbrains.kotlin.android") 
+    
     alias(libs.plugins.compose)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.moko.resources)
