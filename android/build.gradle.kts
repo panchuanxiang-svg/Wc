@@ -1,38 +1,36 @@
 plugins {
-    alias(libs.plugins.android.application)
+    id("com.android.library") // 或者如果你是主App项目，这里可能是 "com.android.application"
     id("org.jetbrains.kotlin.android")
-    alias(libs.plugins.compose)
-    alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.moko.resources)
 }
 
 android {
-    compileSdk = rootProject.extra["compileSdk"] as Int
-    namespace = rootProject.extra["packageName"] as String
+    namespace = "tk.zwander.android" // 请检查并确认这和你原本的 namespace 一致
+    compileSdk = 34
 
-    defaultConfig {  
-        applicationId = namespace  
-        minSdk = rootProject.extra["minSdk"] as Int  
-        targetSdk = rootProject.extra["targetSdk"] as Int  
-        versionCode = rootProject.extra["versionCode"] as Int  
-        versionName = rootProject.extra["versionName"] as String  
-    }  
-
-    compileOptions {  
-        sourceCompatibility = JavaVersion.VERSION_21  
-        targetCompatibility = JavaVersion.VERSION_21  
-        isCoreLibraryDesugaringEnabled = true  
+    defaultConfig {
+        minSdk = 26
+        // targetSdk 如果有定义可以保留
     }
-    // 这里的内部已经完全清空了旧的 kotlinOptions，防止 Android 插件版本过低导致不认识新语法
+
+    compileOptions {
+        // ✅ 关键点：开启脱糖功能
+        isCoreLibraryDesugaringEnabled = true
+        
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    kotlinOptions {
+        jvmTarget = "21"
+    }
 }
 
-// 🟢 终极兼容方案：直接作用于全局 Kotlin 编译任务，100% 解决 jvmTarget 报错
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    compilerOptions {
-        // 1. 严格锁定 JVM 21 目标版本
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
-        
-        // 2. 注入编译参数（使用标准的 listOf 传递，规避 Gradle 类型的 DSL 报错）
-        freeCompilerArgs.addAll(listOf("-Xskip-prerelease-check", "-Xdont-warn-on-error-suppression"))
-    }
+dependencies {
+    // ✅ 关键点：添加脱糖核心库依赖（这是修复报错的唯一方法）
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    
+    // 如果你的 Android 模块依赖 common 模块，请保留下面这行
+    implementation(project(":common"))
+    
+    // 其他你原本的依赖项...
 }
