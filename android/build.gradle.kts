@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose)
@@ -24,17 +27,15 @@ android {
     }
 }
 
-kotlin {
-    androidTarget {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "21"
-                // 可选：添加优化参数
-                freeCompilerArgs += listOf(
-                    "-Xskip-prerelease-check",
-                    "-Xdont-warn-on-error-suppression"
-                )
-            }
-        }
+// ✅ Kotlin 2.x 标准写法：直接配置所有 KotlinCompile 任务
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
+        freeCompilerArgs.addAll(
+            listOf(
+                "-Xskip-prerelease-check",
+                "-Xdont-warn-on-error-suppression"
+            )
+        )
     }
 }
