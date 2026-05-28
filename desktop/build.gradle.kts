@@ -1,37 +1,27 @@
 plugins {
-    alias(libs.plugins.compose)
-    alias(libs.plugins.conveyor)
-    alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.compose.hot.reload)
+    id("org.jetbrains.kotlin.multiplatform")
+    id("org.jetbrains.compose")
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
-group = rootProject.extra["groupName"].toString()
-version = rootProject.extra["versionName"].toString()
-
-val javaVersionEnum: JavaVersion by rootProject.extra
-
 kotlin {
-    jvmToolchain(21)
-
-    jvm("desktop")
+    // 配置 Desktop JVM target
+    jvm("desktop") {
+        compilerOptions {
+            // 使用全路径引用，确保编译期能正确找到 JvmTarget 类
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+        }
+    }
 
     sourceSets {
-        val jvmMain by getting {
+        // Desktop 专有依赖
+        val desktopMain by getting {
             dependencies {
-                implementation(project(":common"))
-                implementation(libs.vaqua)
+                implementation(compose.desktop.currentOs)
+                implementation("io.ktor:ktor-client-cio:2.3.12")
+                implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.21")
             }
         }
     }
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_21)
-    }
-}
-
-tasks.withType<org.gradle.jvm.tasks.Jar> {
-    exclude("META-INF/*.RSA", "META-INF/*.DSA", "META-INF/*.SF")
 }
