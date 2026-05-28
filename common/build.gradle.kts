@@ -7,23 +7,16 @@ plugins {
 
 kotlin {
     androidTarget()
-
-    jvm {
-        compilations.all {
-            compilerOptions.configure {
-                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
-            }
-        }
-    }
+    jvmToolchain(21)
 
     sourceSets {
 
         val commonMain by getting {
             dependencies {
 
-                // =========================
-                // ✅ Compose Multiplatform
-                // =========================
+                // =====================
+                // Compose Multiplatform
+                // =====================
                 implementation(compose.runtime)
                 implementation(compose.foundation)
                 implementation(compose.ui)
@@ -31,14 +24,14 @@ kotlin {
                 implementation(compose.material3)
                 implementation(compose.animation)
 
-                // =========================
-                // ✅ Kotlin Coroutines（修复 launch / scope / rememberCoroutineScope）
-                // =========================
+                // =====================
+                // Coroutines（修复 launch / scope）
+                // =====================
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
-                // =========================
-                // ⚠️ HTML parsing（ksoup）
-                // =========================
+                // =====================
+                // HTML parser
+                // =====================
                 implementation("com.fleeksoft.ksoup:ksoup:0.2.6")
             }
         }
