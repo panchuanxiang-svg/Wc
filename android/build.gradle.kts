@@ -25,14 +25,6 @@ kotlin {
 }
 
 dependencies {
-
-    // =========================
-    // ✅ desugar（Java 8+ API 兼容）
-    // =========================
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-
-    // =========================
-    // ✅ 依赖 common 模块
-    // =========================
     implementation(project(":common"))
 }
