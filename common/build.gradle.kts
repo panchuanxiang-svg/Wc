@@ -3,7 +3,7 @@ plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("org.jetbrains.compose")
-    id("org.jetbrains.kotlin.plugin.compose") // ✅ 新增：适配 Kotlin 2.0+ 的官方 Compose 编译器插件
+    id("org.jetbrains.kotlin.plugin.compose") 
 }
 
 kotlin {
@@ -49,20 +49,19 @@ kotlin {
         val androidMain by getting {
             dependencies {
                 implementation("io.ktor:ktor-client-okhttp:2.3.12")
-                implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.21") // JVM 独占库安全隔离在此
+                implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.21")
             }
         }
 
         val desktopMain by getting {
             dependencies {
                 implementation("io.ktor:ktor-client-cio:2.3.12")
-                implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.21") // JVM 独占库安全隔离在此
+                implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.21")
             }
         }
 
         val iosMain by creating {
             dependsOn(commonMain)
-
             dependencies {
                 implementation("io.ktor:ktor-client-darwin:2.3.12")
             }
@@ -75,7 +74,6 @@ kotlin {
 
 android {
     namespace = "tk.zwander.common"
-
     compileSdk = 34
 
     defaultConfig {
@@ -86,3 +84,4 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
+}
