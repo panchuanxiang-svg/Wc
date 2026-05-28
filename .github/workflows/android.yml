@@ -24,8 +24,20 @@ jobs:
       - name: Grant Execute Permission
         run: chmod +x gradlew
 
-      - name: Build APK
-        run: ./gradlew clean assembleDebug --refresh-dependencies --no-build-cache
+      - name: Hard Clean and Build
+        run: |
+          # 1. 验证配置文件是否存在且内容正确
+          echo "Verifying gradle-wrapper.properties..."
+          cat gradle/wrapper/gradle-wrapper.properties
+          
+          # 2. 清理可能损坏的 Wrapper 缓存
+          rm -rf ~/.gradle/wrapper/dists/*
+          
+          # 3. 执行构建
+          ./gradlew clean assembleDebug \
+          --refresh-dependencies \
+          --no-build-cache \
+          --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
