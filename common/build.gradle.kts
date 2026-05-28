@@ -1,10 +1,13 @@
 plugins {
     kotlin("multiplatform")
     id("com.android.library")
+    id("org.jetbrains.compose")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 kotlin {
     androidTarget()
+
     jvm {
         compilations.all {
             compilerOptions.configure {
@@ -12,11 +15,32 @@ kotlin {
             }
         }
     }
-    
+
     sourceSets {
-        commonMain.dependencies {
-            // 修复：更新至最新维护版本，解决依赖解析报错
-            implementation("com.fleeksoft.ksoup:ksoup:0.2.6")
+
+        val commonMain by getting {
+            dependencies {
+
+                // =========================
+                // ✅ Compose Multiplatform
+                // =========================
+                implementation(compose.runtime)
+                implementation(compose.foundation)
+                implementation(compose.ui)
+                implementation(compose.material)
+                implementation(compose.material3)
+                implementation(compose.animation)
+
+                // =========================
+                // ✅ Kotlin Coroutines（修复 launch / scope / rememberCoroutineScope）
+                // =========================
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+
+                // =========================
+                // ⚠️ HTML parsing（ksoup）
+                // =========================
+                implementation("com.fleeksoft.ksoup:ksoup:0.2.6")
+            }
         }
     }
 }
@@ -24,6 +48,7 @@ kotlin {
 android {
     namespace = "tk.zwander.common"
     compileSdk = 34
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
