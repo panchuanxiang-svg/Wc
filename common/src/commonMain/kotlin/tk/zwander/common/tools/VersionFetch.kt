@@ -30,11 +30,10 @@ object VersionFetch {
             val url =
                 "https://raw.githubusercontent.com/Mai119920513/SamsungTestFirmwareVersionDecrypt/main/firmware.json"
 
-            // ✅ 修正点 1：必须加上 <String>，显式指定返回体类型
             val response: String = client.get(url).body<String>()
+
             val jsonElement = json.parseToJsonElement(response)
 
-            // ✅ 修正点 2：必须加上 <List<GithubFirmwareDto>>，显式指定反序列化目标类型
             val dtoList: List<GithubFirmwareDto> = when (jsonElement) {
                 is JsonArray ->
                     json.decodeFromJsonElement<List<GithubFirmwareDto>>(jsonElement)
