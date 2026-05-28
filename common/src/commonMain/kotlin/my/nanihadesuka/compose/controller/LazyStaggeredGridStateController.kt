@@ -3,21 +3,15 @@ package my.nanihadesuka.compose.controller
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridItemInfo
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableFloatState
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import my.nanihadesuka.compose.ScrollbarSelectionMode
 import kotlin.math.ceil
 import kotlin.math.floor
+
+// 强制隔离 Compose State，避免和你项目里的 State 冲突
+import androidx.compose.runtime.State as ComposeState
 
 @Composable
 internal fun rememberLazyStaggeredGridStateController(
@@ -29,14 +23,16 @@ internal fun rememberLazyStaggeredGridStateController(
     selectionMode: ScrollbarSelectionMode,
     orientation: Orientation
 ): LazyStaggeredGridStateController {
-    val coroutineScope = rememberCoroutineScope()
 
-    val thumbMinLengthUpdated = rememberUpdatedState(thumbMinLength)
-    val thumbMaxLengthUpdated = rememberUpdatedState(thumbMaxLength)
-    val alwaysShowScrollBarUpdated = rememberUpdatedState(alwaysShowScrollBar)
-    val selectionModeUpdated = rememberUpdatedState(selectionMode)
-    val orientationUpdated = rememberUpdatedState(orientation)
-    val reverseLayout = remember { derivedStateOf { reverseLayout } }
+    val scope = rememberCoroutineScope()
+
+    val thumbMin = rememberUpdatedState(thumbMinLength)
+    val thumbMax = rememberUpdatedState(thumbMaxLength)
+    val alwaysShow = rememberUpdatedState(alwaysShowScrollBar)
+    val mode = rememberUpdatedState(selectionMode)
+    val ori = rememberUpdatedState(orientation)
+
+    val reverse = remember { derivedStateOf { reverseLayout } }
 
     val isSelected = remember { mutableStateOf(false) }
     val dragOffset = remember { mutableFloatStateOf(0f) }
@@ -49,22 +45,13 @@ internal fun rememberLazyStaggeredGridStateController(
         }
     }
 
-    // Workaround to know indirectly how many columns/rows are being used (LazyGridState doesn't store it)
     val nElementsMainAxis = remember {
         derivedStateOf {
             var count = 0
             for (item in state.layoutInfo.visibleItemsInfo) {
-                val index = when (orientation) {
-                    Orientation.Vertical -> item.lane
-                    Orientation.Horizontal -> item.lane
-                }
-                if (index == -1)
-                    break
-                if (count == index) {
-                    count += 1
-                } else {
-                    break
-                }
+                val lane = item.lane
+                if (lane == -1) break
+                if (count == lane) count++ else break
             }
             count.coerceAtLeast(1)
         }
@@ -73,167 +60,165 @@ internal fun rememberLazyStaggeredGridStateController(
     val isStickyHeaderInAction = remember {
         derivedStateOf {
             val realIndex = realFirstVisibleItem.value?.index ?: return@derivedStateOf false
-            val firstVisibleIndex = state.layoutInfo.visibleItemsInfo.firstOrNull()?.index
+            val first = state.layoutInfo.visibleItemsInfo.firstOrNull()?.index
                 ?: return@derivedStateOf false
-            realIndex != firstVisibleIndex
+            realIndex != first
         }
     }
 
-    fun LazyStaggeredGridItemInfo.fractionHiddenTop(firstItemOffset: Int): Float {
-        return when (orientationUpdated.value) {
-            Orientation.Vertical -> if (size.height == 0) 0f else firstItemOffset / size.width.toFloat()
-            Orientation.Horizontal -> if (size.width == 0) 0f else firstItemOffset / size.width.toFloat()
+    fun LazyStaggeredGridItemInfo.fractionHiddenTop(offset: Int): Float {
+        return when (ori.value) {
+            Orientation.Vertical ->
+                if (size.height == 0) 0f else offset / size.height.toFloat()
+            Orientation.Horizontal ->
+                if (size.width == 0) 0f else offset / size.width.toFloat()
         }
     }
 
-    fun LazyStaggeredGridItemInfo.fractionVisibleBottom(viewportEndOffset: Int): Float {
-        return when (orientationUpdated.value) {
-            Orientation.Vertical -> if (size.height == 0) 0f else (viewportEndOffset - offset.y).toFloat() / size.height.toFloat()
-            Orientation.Horizontal -> if (size.width == 0) 0f else (viewportEndOffset - offset.x).toFloat() / size.width.toFloat()
+    fun LazyStaggeredGridItemInfo.fractionVisibleBottom(end: Int): Float {
+        return when (ori.value) {
+            Orientation.Vertical ->
+                if (size.height == 0) 0f else (end - offset.y) / size.height.toFloat()
+            Orientation.Horizontal ->
+                if (size.width == 0) 0f else (end - offset.x) / size.width.toFloat()
         }
     }
 
-    val thumbSizeNormalizedReal = remember {
+    val thumbSizeReal = remember {
         derivedStateOf {
-            state.layoutInfo.let {
-                if (it.totalItemsCount == 0)
-                    return@let 0f
+            val info = state.layoutInfo
+            if (info.totalItemsCount == 0) return@derivedStateOf 0f
 
-                val firstItem = realFirstVisibleItem.value ?: return@let 0f
-                val firstPartial =
-                    firstItem.fractionHiddenTop(state.firstVisibleItemScrollOffset)
-                val lastPartial =
-                    1f - it.visibleItemsInfo.last().fractionVisibleBottom(it.viewportEndOffset)
+            val first = realFirstVisibleItem.value ?: return@derivedStateOf 0f
+            val firstPartial = first.fractionHiddenTop(state.firstVisibleItemScrollOffset)
 
-                val realSize =
-                    ceil(it.visibleItemsInfo.size.toFloat() / nElementsMainAxis.value.toFloat()) - if (isStickyHeaderInAction.value) 1f else 0f
-                val realVisibleSize = realSize - firstPartial - lastPartial
-                realVisibleSize / ceil(it.totalItemsCount.toFloat() / nElementsMainAxis.value.toFloat())
-            }
+            val lastPartial =
+                1f - (info.visibleItemsInfo.lastOrNull()
+                    ?.fractionVisibleBottom(info.viewportEndOffset) ?: 0f)
+
+            val realSize =
+                ceil(info.visibleItemsInfo.size.toFloat() / nElementsMainAxis.value.toFloat()) -
+                        if (isStickyHeaderInAction.value) 1f else 0f
+
+            val visible = realSize - firstPartial - lastPartial
+
+            visible / ceil(info.totalItemsCount.toFloat() / nElementsMainAxis.value.toFloat())
         }
     }
 
-    val thumbSizeNormalized = remember {
+    val thumbSize = remember {
         derivedStateOf {
-            thumbSizeNormalizedReal.value.coerceIn(
-                thumbMinLengthUpdated.value,
-                thumbMaxLengthUpdated.value,
-            )
+            thumbSizeReal.value.coerceIn(thumbMin.value, thumbMax.value)
         }
     }
 
-    fun offsetCorrection(top: Float): Float {
-        val topRealMax = (1f - thumbSizeNormalizedReal.value).coerceIn(0f, 1f)
-        if (thumbSizeNormalizedReal.value >= thumbMinLengthUpdated.value) {
-            return when {
-                reverseLayout.value -> topRealMax - top
-                else -> top
-            }
-        }
+    fun correction(top: Float): Float {
+        val max = (1f - thumbSizeReal.value).coerceIn(0f, 1f)
 
-        val topMax = 1f - thumbMinLengthUpdated.value
-        return when {
-            reverseLayout.value -> (topRealMax - top) * topMax / topRealMax
-            else -> top * topMax / topRealMax
+        return if (thumbSizeReal.value >= thumbMin.value) {
+            if (reverse.value) max - top else top
+        } else {
+            val max2 = 1f - thumbMin.value
+            if (reverse.value) (max - top) * max2 / max
+            else top * max2 / max
         }
     }
 
-    val thumbOffsetNormalized = remember {
+    val thumbOffset = remember {
         derivedStateOf {
-            state.layoutInfo.let {
-                if (it.totalItemsCount == 0 || it.visibleItemsInfo.isEmpty())
-                    return@let 0f
+            val info = state.layoutInfo
+            if (info.totalItemsCount == 0 || info.visibleItemsInfo.isEmpty()) return@derivedStateOf 0f
 
-                val firstItem = realFirstVisibleItem.value ?: return@let 0f
-                val top = firstItem.run {
-                    ceil(index.toFloat() / nElementsMainAxis.value.toFloat()) + fractionHiddenTop(
-                        state.firstVisibleItemScrollOffset
-                    )
-                } / ceil(it.totalItemsCount.toFloat() / nElementsMainAxis.value.toFloat())
-                offsetCorrection(top)
-            }
+            val first = realFirstVisibleItem.value ?: return@derivedStateOf 0f
+
+            val top =
+                ceil(first.index.toFloat() / nElementsMainAxis.value.toFloat()) +
+                        first.fractionHiddenTop(state.firstVisibleItemScrollOffset)
+
+            correction(top / ceil(info.totalItemsCount.toFloat() / nElementsMainAxis.value.toFloat()))
         }
     }
 
-    val thumbIsInAction = remember {
+    val thumbActive = remember {
         derivedStateOf {
-            state.isScrollInProgress || isSelected.value || alwaysShowScrollBarUpdated.value
+            state.isScrollInProgress || isSelected.value || alwaysShow.value
         }
     }
 
     return remember {
         LazyStaggeredGridStateController(
-            thumbSizeNormalized = thumbSizeNormalized,
-            thumbSizeNormalizedReal = thumbSizeNormalizedReal,
-            thumbOffsetNormalized = thumbOffsetNormalized,
-            thumbIsInAction = thumbIsInAction,
-            _isSelected = isSelected,
-            dragOffset = dragOffset,
-            selectionMode = selectionModeUpdated,
-            realFirstVisibleItem = realFirstVisibleItem,
-            thumbMinLength = thumbMinLengthUpdated,
-            reverseLayout = reverseLayout,
-            orientation = orientationUpdated,
-            nElementsMainAxis = nElementsMainAxis,
-            state = state,
-            coroutineScope = coroutineScope
+            thumbSize,
+            thumbOffset,
+            thumbActive,
+            isSelected,
+            dragOffset,
+            mode,
+            realFirstVisibleItem,
+            thumbSizeReal,
+            thumbMin,
+            reverse,
+            ori,
+            nElementsMainAxis,
+            state,
+            scope
         )
     }
 }
 
 internal class LazyStaggeredGridStateController(
-    override val thumbSizeNormalized: State<Float>,
-    override val thumbOffsetNormalized: State<Float>,
-    override val thumbIsInAction: State<Boolean>,
+    override val thumbSizeNormalized: ComposeState<Float>,
+    override val thumbOffsetNormalized: ComposeState<Float>,
+    override val thumbIsInAction: ComposeState<Boolean>,
     private val _isSelected: MutableState<Boolean>,
     private val dragOffset: MutableFloatState,
-    private val selectionMode: State<ScrollbarSelectionMode>,
-    private val realFirstVisibleItem: State<LazyStaggeredGridItemInfo?>,
-    private val thumbSizeNormalizedReal: State<Float>,
-    private val thumbMinLength: State<Float>,
-    private val reverseLayout: State<Boolean>,
-    private val orientation: State<Orientation>,
-    private val nElementsMainAxis: State<Int>,
+    private val selectionMode: ComposeState<ScrollbarSelectionMode>,
+    private val realFirstVisibleItem: ComposeState<LazyStaggeredGridItemInfo?>,
+    private val thumbSizeReal: ComposeState<Float>,
+    private val thumbMin: ComposeState<Float>,
+    private val reverse: ComposeState<Boolean>,
+    private val orientation: ComposeState<Orientation>,
+    private val nElementsMainAxis: ComposeState<Int>,
     private val state: LazyStaggeredGridState,
-    private val coroutineScope: CoroutineScope,
+    private val scope: CoroutineScope
 ) : StateController<Int> {
 
-    override val isSelected = _isSelected
+    override val isSelected: MutableState<Boolean> = _isSelected
 
-    override fun indicatorValue(): Int {
-        return state.firstVisibleItemIndex
-    }
+    override fun indicatorValue(): Int = state.firstVisibleItemIndex
 
     override fun onDraggableState(deltaPixels: Float, maxLengthPixels: Float) {
-        val displace = if (reverseLayout.value) -deltaPixels else deltaPixels // side effect ?
+        val d = if (reverse.value) -deltaPixels else deltaPixels
         if (isSelected.value) {
-            setScrollOffset(dragOffset.floatValue + displace / maxLengthPixels)
+            setScrollOffset(dragOffset.floatValue + d / maxLengthPixels)
         }
     }
 
     override fun onDragStarted(offsetPixels: Float, maxLengthPixels: Float) {
         if (maxLengthPixels <= 0f) return
-        val newOffset = when {
-            reverseLayout.value -> (maxLengthPixels - offsetPixels) / maxLengthPixels
-            else -> offsetPixels / maxLengthPixels
-        }
-        val currentOffset = when {
-            reverseLayout.value -> 1f - thumbOffsetNormalized.value - thumbSizeNormalized.value
-            else -> thumbOffsetNormalized.value
-        }
+
+        val newOffset =
+            if (reverse.value)
+                (maxLengthPixels - offsetPixels) / maxLengthPixels
+            else offsetPixels / maxLengthPixels
+
+        val current =
+            if (reverse.value)
+                1f - thumbOffsetNormalized.value - thumbSizeNormalized.value
+            else thumbOffsetNormalized.value
 
         when (selectionMode.value) {
             ScrollbarSelectionMode.Full -> {
-                if (newOffset in currentOffset..(currentOffset + thumbSizeNormalized.value))
-                    setDragOffset(currentOffset)
-                else
+                if (newOffset in current..(current + thumbSizeNormalized.value)) {
+                    setDragOffset(current)
+                } else {
                     setScrollOffset(newOffset)
+                }
                 _isSelected.value = true
             }
 
             ScrollbarSelectionMode.Thumb -> {
-                if (newOffset in currentOffset..(currentOffset + thumbSizeNormalized.value)) {
-                    setDragOffset(currentOffset)
+                if (newOffset in current..(current + thumbSizeNormalized.value)) {
+                    setDragOffset(current)
                     _isSelected.value = true
                 }
             }
@@ -246,40 +231,41 @@ internal class LazyStaggeredGridStateController(
         _isSelected.value = false
     }
 
-    private fun setScrollOffset(newOffset: Float) {
-        setDragOffset(newOffset)
-        val totalItemsCount =
-            ceil(state.layoutInfo.totalItemsCount.toFloat() / nElementsMainAxis.value.toFloat())
-        val exactIndex = offsetCorrectionInverse(totalItemsCount * dragOffset.floatValue)
-        val index: Int = floor(exactIndex).toInt() * nElementsMainAxis.value
-        val remainder: Float = exactIndex - floor(exactIndex)
+    private fun setScrollOffset(offset: Float) {
+        setDragOffset(offset)
 
-        coroutineScope.launch {
-            state.scrollToItem(index = index, scrollOffset = 0)
-            val offset = realFirstVisibleItem.value
-                ?.size
-                ?.let {
-                    val size = when (orientation.value) {
-                        Orientation.Vertical -> it.height
-                        Orientation.Horizontal -> it.width
-                    }
-                    size.toFloat() * remainder
-                }
-                ?.toInt() ?: 0
-            state.scrollToItem(index = index, scrollOffset = offset)
+        val total =
+            ceil(state.layoutInfo.totalItemsCount.toFloat() / nElementsMainAxis.value.toFloat())
+
+        val exact = offsetCorrectionInverse(total * dragOffset.floatValue)
+
+        val index = floor(exact).toInt() * nElementsMainAxis.value
+        val rem = exact - floor(exact)
+
+        scope.launch {
+            state.scrollToItem(index, 0)
+
+            val itemSize = realFirstVisibleItem.value?.size
+            val pixel = itemSize?.let {
+                val s = if (orientation.value == Orientation.Vertical) it.height else it.width
+                (s * rem).toInt()
+            } ?: 0
+
+            state.scrollToItem(index, pixel)
         }
     }
 
-    private fun setDragOffset(value: Float) {
-        val maxValue = (1f - thumbSizeNormalized.value).coerceAtLeast(0f)
-        dragOffset.floatValue = value.coerceIn(0f, maxValue)
+    private fun setDragOffset(v: Float) {
+        val max = (1f - thumbSizeNormalized.value).coerceAtLeast(0f)
+        dragOffset.floatValue = v.coerceIn(0f, max)
     }
 
     private fun offsetCorrectionInverse(top: Float): Float {
-        if (thumbSizeNormalizedReal.value >= thumbMinLength.value)
-            return top
-        val topRealMax = 1f - thumbSizeNormalizedReal.value
-        val topMax = 1f - thumbMinLength.value
-        return top * topRealMax / topMax
+        if (thumbSizeReal.value >= thumbMin.value) return top
+
+        val realMax = 1f - thumbSizeReal.value
+        val max = 1f - thumbMin.value
+
+        return top * realMax / max
     }
 }
