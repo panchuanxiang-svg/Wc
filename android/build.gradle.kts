@@ -23,10 +23,16 @@ android {
         targetCompatibility = JavaVersion.VERSION_21  
         isCoreLibraryDesugaringEnabled = true  
     }
+    // 这里的内部已经完全清空了旧的 kotlinOptions，防止 Android 插件版本过低导致不认识新语法
+}
 
-    // 🟢 核心修改：将旧的 kotlinOptions 改为满足 Kotlin 2.0+ 规范的 compilerOptions
+// 🟢 终极兼容方案：直接作用于全局 Kotlin 编译任务，100% 解决 jvmTarget 报错
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     compilerOptions {
+        // 1. 严格锁定 JVM 21 目标版本
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
-        freeCompilerArgs.addAll("-Xskip-prerelease-check", "-Xdont-warn-on-error-suppression")
+        
+        // 2. 注入编译参数（使用标准的 listOf 传递，规避 Gradle 类型的 DSL 报错）
+        freeCompilerArgs.addAll(listOf("-Xskip-prerelease-check", "-Xdont-warn-on-error-suppression"))
     }
 }
