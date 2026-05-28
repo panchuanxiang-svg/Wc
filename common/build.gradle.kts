@@ -1,12 +1,12 @@
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.compose)
+    id("org.jetbrains.kotlin.multiplatform")
+    id("com.android.library")
+    id("org.jetbrains.kotlin.plugin.serialization")
+    id("org.jetbrains.compose")
 }
 
 kotlin {
-    // 👈 核心修改：让多平台编译出的 Android 库版本与 App 外壳完全对齐
+    // 👈 核心修改：配置多平台共享模块编译 Android 库时的 target 级别
     androidTarget {
         compilations.all {
             kotlinOptions {
@@ -21,6 +21,7 @@ kotlin {
     iosSimulatorArm64()
 
     sourceSets {
+
         val commonMain by getting {
             dependencies {
                 implementation(compose.runtime)
@@ -57,15 +58,14 @@ kotlin {
         val iosMain by creating {
             dependsOn(commonMain)
 
-            val iosArm64Main by getting
-            val iosSimulatorArm64Main by getting
-            iosArm64Main.dependsOn(this)
-            iosSimulatorArm64Main.dependsOn(this)
-
             dependencies {
                 implementation("io.ktor:ktor-client-darwin:2.3.12")
             }
         }
+        
+        // 👈 修正原本直接写在闭包里的语法错误
+        val iosArm64Main by getting { dependsOn(iosMain) }
+        val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
     }
 }
 
