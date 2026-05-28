@@ -4,8 +4,8 @@ android-gradle = "8.7.3"
 androidx-activity-compose = "1.9.3"
 androidx-core = "1.15.0"
 androidx-documentfile = "1.1.0"
-androidx-performance-annotation = "1.0.0-alpha01"
 androidx-preference = "1.2.1"
+androidx-performance-annotation = "1.0.0-alpha01"
 
 appdirs = "1.5.0"
 
@@ -204,6 +204,8 @@ compose-hot-reload = { id = "org.jetbrains.compose.hot-reload", version.ref = "c
 
 conveyor = { id = "dev.hydraulic.conveyor", version.ref = "conveyor" }
 
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" } # 👈 关键修复：补上了这一行！
+
 kotlin-atomicfu = { id = "org.jetbrains.kotlin.plugin.atomicfu", version.ref = "kotlin" }
 
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
@@ -217,3 +219,4 @@ kotlin-native-cocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", versio
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 
 moko-resources = { id = "dev.icerock.mobile.multiplatform-resources", version.ref = "moko-resources" }
+
