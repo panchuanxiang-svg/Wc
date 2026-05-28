@@ -3,16 +3,21 @@ package tk.zwander.common.tools
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
-import kotlinx.coroutines.Dispatchers // 👈 仅保留正确的 Dispatchers 导包
+import io.ktor.client.engine.cio.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.* // 👈 引入 JsonElement 相关解析支持
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.parseToJsonElement
 import tk.zwander.common.data.SmartBinaryInfo
 import tk.zwander.common.util.DataParsingUtils
 
 object VersionFetch {
 
-    private val client = HttpClient()
+    private val client = HttpClient(CIO)
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -30,25 +35,21 @@ object VersionFetch {
     suspend fun fetchGithubFirmware(): List<SmartBinaryInfo> =
         withContext(Dispatchers.IO) {
             try {
-                val url = "https://raw.githubusercontent.com/Mai119920513/SamsungTestFirmwareVersionDecrypt/main/firmware.json"
-                val response = client.get(url).body<String>()
+                val url =
+                    "https://raw.githubusercontent.com/Mai119920513/SamsungTestFirmwareVersionDecrypt/main/firmware.json"
 
-                // 💡 遵循截图建议的【更稳版本】：先转为万能的 JsonElement 兜底，防止结构变化导致 Crash
+                val response = client.get(url).body<String>()
                 val jsonElement = json.parseToJsonElement(response)
-                
-                // 判断远程 JSON 根节点是数组还是对象
+
                 val dtoList: List<GithubFirmwareDto> = when {
-                    // 情况 A：标准的 [...] 数组结构
-                    jsonElement is JsonArray -> {
-                        json.decodeFromJsonElement<List<GithubFirmwareDto>>(jsonElement)
-                    }
-                    // 情况 B：未来如果变成了 {"data": [...]} 的对象包裹结构
-                    jsonElement is JsonObject && jsonElement.containsKey("data") -> {
+                    jsonElement is JsonArray ->
+                        json.decodeFromJsonElement(jsonElement)
+
+                    jsonElement is JsonObject && jsonElement.containsKey("data") ->
                         jsonElement["data"]?.let {
-                            json.decodeFromJsonElement<List<GithubFirmwareDto>>(it)
+                            json.decodeFromJsonElement(it)
                         } ?: emptyList()
-                    }
-                    // 情况 C：其他未知突变
+
                     else -> emptyList()
                 }
 
