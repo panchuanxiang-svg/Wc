@@ -1,7 +1,6 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-// 定义项目版本和 SDK 常量
 val versionCode by extra(93)
 val versionName by extra("2.1.2")
 
@@ -30,14 +29,11 @@ plugins {
     alias(libs.plugins.moko.resources) apply false
 }
 
-// 统一配置所有子模块，确保 JVM 21 环境和编译器参数生效
 subprojects {
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
-            // 使用 JvmTarget 枚举类型，这是 Kotlin 2.0+ 的最佳实践
             jvmTarget.set(JvmTarget.JVM_21)
-            
-            // 优化编译参数
+
             freeCompilerArgs.addAll(
                 "-Xskip-prerelease-check",
                 "-Xdont-warn-on-error-suppression"
