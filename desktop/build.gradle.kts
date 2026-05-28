@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     alias(libs.plugins.compose)
     alias(libs.plugins.conveyor)
@@ -11,12 +9,12 @@ plugins {
 group = rootProject.extra["groupName"].toString()
 version = rootProject.extra["versionName"].toString()
 
-kotlin {
-    jvm()
+val javaVersionEnum: JavaVersion by rootProject.extra
 
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_21)
-    }
+kotlin {
+    jvmToolchain(21)
+
+    jvm("desktop")
 
     sourceSets {
         val jvmMain by getting {
@@ -26,4 +24,14 @@ kotlin {
             }
         }
     }
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
+    }
+}
+
+tasks.withType<org.gradle.jvm.tasks.Jar> {
+    exclude("META-INF/*.RSA", "META-INF/*.DSA", "META-INF/*.SF")
 }
