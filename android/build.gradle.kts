@@ -1,8 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
-    // 👈 移除不匹配的多平台插件，在这个作为外壳的 android 模块中
-    // 引入常规的 kotlin.android 插件或与其保持一致
-    alias(libs.plugins.kotlin.android) 
+    alias(libs.plugins.kotlin.android) // 👈 使用了你 toml 里的定义的 kotlin-android 插件
     alias(libs.plugins.compose)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.moko.resources)
@@ -26,8 +24,7 @@ android {
         isCoreLibraryDesugaringEnabled = true  
     }
 
-    // 👈 核心修改：在 KMP 架构的 android 壳模块中，
-    // kotlinOptions 必须直接写在 android {} 块内！
+    // 👈 完美迁移：确保打包和编译时使用 Java 21 字节码
     kotlinOptions {
         jvmTarget = "21"
         freeCompilerArgs += listOf(
