@@ -4,11 +4,7 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.parseToJsonElement
+import kotlinx.serialization.json.*
 import tk.zwander.common.data.SmartBinaryInfo
 import tk.zwander.common.util.DataParsingUtils
 
@@ -34,16 +30,18 @@ object VersionFetch {
             val url =
                 "https://raw.githubusercontent.com/Mai119920513/SamsungTestFirmwareVersionDecrypt/main/firmware.json"
 
-            val response: String = client.get(url).body()
+            // ✅ 修正点 1：必须加上 <String>，显式指定返回体类型
+            val response: String = client.get(url).body<String>()
             val jsonElement = json.parseToJsonElement(response)
 
-            val dtoList: List<GithubFirmwareDto> = when {
-                jsonElement is JsonArray ->
-                    json.decodeFromJsonElement(jsonElement)
+            // ✅ 修正点 2：必须加上 <List<GithubFirmwareDto>>，显式指定反序列化目标类型
+            val dtoList: List<GithubFirmwareDto> = when (jsonElement) {
+                is JsonArray ->
+                    json.decodeFromJsonElement<List<GithubFirmwareDto>>(jsonElement)
 
-                jsonElement is JsonObject && jsonElement.containsKey("data") ->
+                is JsonObject ->
                     jsonElement["data"]?.let {
-                        json.decodeFromJsonElement(it)
+                        json.decodeFromJsonElement<List<GithubFirmwareDto>>(it)
                     } ?: emptyList()
 
                 else -> emptyList()
