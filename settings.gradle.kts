@@ -1,35 +1,27 @@
-name: Android CI
+rootProject.name = "Wc"
 
-on:
-  workflow_dispatch:
+include(":android")
+include(":common")
+include(":desktop")
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          ref: master
-          fetch-depth: 0
+    plugins {
+        id("org.jetbrains.kotlin.multiplatform") version "2.0.21"
+        id("org.jetbrains.kotlin.android") version "2.0.21"
+        id("org.jetbrains.compose") version "1.6.11"
+        id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
+    }
+}
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: zulu
-          java-version: 17
-          cache: gradle
-
-      - name: Grant Execute Permission
-        run: chmod +x gradlew
-
-      - name: Build Android
-        run: |
-          ./gradlew :android:clean :android:assembleDebug --refresh-dependencies --no-build-cache --stacktrace
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-debug-apk
-          path: android/build/outputs/apk/debug/*.apk
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
