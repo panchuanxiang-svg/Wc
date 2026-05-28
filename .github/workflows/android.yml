@@ -1,4 +1,4 @@
-name: Android CI (Manual Trigger)
+name: Android CI
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          ref: Master
+          ref: master
           fetch-depth: 0
 
       - name: Set up JDK 17
