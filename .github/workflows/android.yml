@@ -20,20 +20,24 @@ jobs:
           distribution: zulu
           java-version: 17
           cache: gradle
+          # 告诉 Gradle 缓存位于 android 目录下
+          cache-dependency-path: android/build.gradle.kts 
 
       - name: Grant Execute Permission
-        run: chmod +x gradlew
+        # 注意：这里需要指向 android 目录下的 gradlew
+        run: chmod +x android/gradlew
 
       - name: Hard Clean and Build
+        # 在这里进入 android 目录执行命令
         run: |
-          # 1. 验证配置文件是否存在且内容正确
+          cd android
           echo "Verifying gradle-wrapper.properties..."
           cat gradle/wrapper/gradle-wrapper.properties
           
-          # 2. 清理可能损坏的 Wrapper 缓存
+          # 清理可能损坏的 Wrapper 缓存
           rm -rf ~/.gradle/wrapper/dists/*
           
-          # 3. 执行构建
+          # 执行构建
           ./gradlew clean assembleDebug \
           --refresh-dependencies \
           --no-build-cache \
@@ -43,6 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk
+          # 这里保持不变，因为它是相对于工作区根目录的
           path: android/build/outputs/apk/debug/*.apk
- 
- 
