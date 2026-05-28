@@ -1,100 +1,96 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
-    id("org.jetbrains.kotlin.multiplatform")
-    id("com.android.library")
-    id("org.jetbrains.kotlin.plugin.serialization")
-    id("org.jetbrains.compose")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.compose)
 }
 
 kotlin {
     androidTarget {
         compilations.all {
-            kotlinOptions {
-                jvmTarget = "17"
+            compilerOptions {
+                jvmTarget.set(JvmTarget.JVM_21)
             }
         }
     }
 
-    jvm("desktop")
+    jvm("desktop") {
+        compilations.all {
+            compilerOptions {
+                jvmTarget.set(JvmTarget.JVM_21)
+            }
+        }
+    }
 
     iosArm64()
     iosSimulatorArm64()
 
     sourceSets {
-
         val commonMain by getting {
             dependencies {
-
                 // Compose
                 implementation(compose.runtime)
                 implementation(compose.foundation)
                 implementation(compose.material3)
                 implementation(compose.ui)
 
-                // Kotlin
-                implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.21")
-
-                // Coroutines
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-
-                // Serialization
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-
-                // Datetime
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
+                // Kotlin & Coroutines
+                implementation(libs.kotlin.reflect)
+                implementation(libs.kotlinx.coroutines)
+                implementation(libs.kotlinx.serialization.json)
+                implementation(libs.kotlinx.datetime)
 
                 // Ktor
-                implementation("io.ktor:ktor-client-core:2.3.12")
-                implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
-                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
-                implementation("io.ktor:ktor-client-auth:2.3.12")
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.content.negotiation)
+                implementation(libs.ktor.serialization.kotlinx.json)
+                implementation(libs.ktor.client.auth)
 
                 // Ksoup
-                implementation("com.mohamedrejeb.ksoup:ksoup:0.2.1")
+                implementation(libs.ksoup)
             }
         }
 
         val androidMain by getting {
             dependencies {
-
-                // Android Ktor Engine
-                implementation("io.ktor:ktor-client-okhttp:2.3.12")
+                implementation(libs.ktor.client.okhttp)
             }
         }
 
         val desktopMain by getting {
             dependencies {
-
-                // Desktop Ktor Engine
-                implementation("io.ktor:ktor-client-cio:2.3.12")
+                implementation(libs.ktor.client.cio)
             }
         }
 
         val iosMain by creating {
             dependsOn(commonMain)
-
-            iosArm64Main.dependsOn(iosMain)
-            iosSimulatorArm64Main.dependsOn(iosMain)
-
             dependencies {
-
-                // iOS Ktor Engine
-                implementation("io.ktor:ktor-client-darwin:2.3.12")
+                implementation(libs.ktor.client.darwin)
             }
         }
+
+        val iosArm64Main by getting { dependsOn(iosMain) }
+        val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
     }
 }
 
 android {
     namespace = "tk.zwander.common"
 
-    compileSdk = 34
+    val compileSdkVal: Int by rootProject.extra
+    val minSdkVal: Int by rootProject.extra
 
+    compileSdk = compileSdkVal
     defaultConfig {
-        minSdk = 26
+        minSdk = minSdkVal
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        val javaVersionEnum: JavaVersion by rootProject.extra
+        sourceCompatibility = javaVersionEnum
+        targetCompatibility = javaVersionEnum
     }
 }
