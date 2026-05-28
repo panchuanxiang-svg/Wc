@@ -1,45 +1,100 @@
-val commonMain by getting {
-    dependencies {
-        api(libs.compose.foundation)
-        api(libs.compose.material3)
-        api(libs.compose.runtime)
-        api(libs.compose.ui)
-        api(libs.material.icons.core)
-        api(libs.kotlin)
-        api(libs.kotlin.reflect)
-        api(libs.kotlinx.coroutines)
-        api(libs.kotlinx.datetime)
-        api(libs.kotlinx.io.core)
-        api(libs.kotlinx.serialization.json)
-        api(libs.ksoup)
+package tk.zwander.common.tools
 
-        // ✅ KTOR（统一 CIO）
-        api(libs.ktor.client.core)
-        api(libs.ktor.client.cio)
-        api(libs.ktor.client.content.negotiation)
-        api(libs.ktor.serialization.kotlinx.json)
-        api(libs.ktor.client.auth)
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import io.ktor.client.engine.cio.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.*
+import tk.zwander.common.data.SmartBinaryInfo
+import tk.zwander.common.util.DataParsingUtils
 
-        api(libs.moko.resources)
-        api(libs.moko.resources.compose)
-        api(libs.multiplatformSettings)
-        api(libs.multiplatformSettings.noArg)
-        api(libs.richeditor.compose)
-        api(libs.semver)
-        api(libs.filekit.core)
-        api(libs.filekit.dialogs.compose)
-        api(libs.kmpfile)
-        api(libs.kmpplatform)
-        api(libs.zwander.composedialog)
-        api(libs.zwander.materialyou)
-        api(libs.csv)
-        api(libs.cryptography.core)
-        api(libs.kotlinx.crypto.crc32)
-        api(libs.kotlinx.atomicfu)
-        api(libs.androidx.performance.annotation)
-        api(libs.xmlbuilder)
-        api(libs.ketch.core)
-        api(libs.ketch.ktor)
-        api(libs.ketch.sqlite)
+object VersionFetch {
+
+    private val client = HttpClient(CIO)
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+    }
+
+    @Serializable
+    data class GithubFirmwareDto(
+        val model: String = "",
+        val name: String = "",
+        val version: String = "",
+        val region: String = ""
+    )
+
+    suspend fun fetchGithubFirmware(): List<SmartBinaryInfo> =
+        withContext(Dispatchers.IO) {
+            try {
+                val url =
+                    "https://raw.githubusercontent.com/Mai119920513/SamsungTestFirmwareVersionDecrypt/main/firmware.json"
+
+                val response: String = client.get(url).body()
+                val jsonElement = json.parseToJsonElement(response)
+
+                val dtoList: List<GithubFirmwareDto> = when (jsonElement) {
+                    is JsonArray ->
+                        json.decodeFromJsonElement(jsonElement)
+
+                    is JsonObject ->
+                        jsonElement["data"]?.let {
+                            json.decodeFromJsonElement(it)
+                        } ?: emptyList()
+
+                    else -> emptyList()
+                }
+
+                dtoList.mapIndexed { i, item ->
+                    SmartBinaryInfo(
+                        index = null,
+                        sequence = 10000 + i,
+                        modelName = item.model,
+                        displayName = item.name,
+                        swVersion = item.version,
+                        displayVersion = item.version,
+                        directVersion = null,
+                        localCode = item.region,
+                        buyerCode = null,
+                        nature = null,
+                        status = 1,
+                        exists = 1,
+                        osName = null,
+                        platform = null,
+                        openDate = null,
+                        sharing = null,
+                        category = "GITHUB",
+                        open = null
+                    )
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                emptyList()
+            }
+        }
+
+    fun parseHistoryInfos(history: Any?): List<SmartBinaryInfo> {
+        return try {
+            DataParsingUtils.extractBinaryInfos(history)
+                .sortedByDescending { it.sequence }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun hybridGetLatestVersion(history: Any?): List<SmartBinaryInfo> {
+        val fus = parseHistoryInfos(history)
+        val github = fetchGithubFirmware()
+
+        return (fus + github)
+            .filter { it.swVersion.isNotBlank() }
+            .sortedWith(
+                compareBy<SmartBinaryInfo> { it.category == "GITHUB" }
+                    .thenByDescending { it.sequence }
+            )
     }
 }
