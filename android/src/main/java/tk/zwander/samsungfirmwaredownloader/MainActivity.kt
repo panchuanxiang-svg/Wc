@@ -1,88 +1,139 @@
 package tk.zwander.samsungfirmwaredownloader
 
-import android.Manifest
-import android.content.ComponentName
-import android.content.ServiceConnection
-import android.content.pm.PackageManager
-import android.os.Build
-import android.os.Bundle
-import android.os.IBinder
+import android.content.*
+import android.os.*
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
-import io.github.vinceglb.filekit.FileKit
-import io.github.vinceglb.filekit.dialogs.init
+import kotlinx.coroutines.*
 import kotlinx.atomicfu.atomic
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.MainScope
 import tk.zwander.common.IDownloaderService
-import tk.zwander.common.util.FileManager
-import tk.zwander.common.util.LocalPhoneInfo
-import tk.zwander.common.util.rememberPhoneInfo
-import tk.zwander.commonCompose.MainView
-import kotlin.time.ExperimentalTime
+import tk.zwander.common.data.SmartBinaryInfo
+import tk.zwander.common.tools.VersionFetch
 
-/**
- * The Activity to show the downloader UI.
- */
-@ExperimentalTime
-class MainActivity : FragmentActivity(), CoroutineScope by MainScope(), ServiceConnection {
-    private val downloaderService = atomic<IDownloaderService?>(null)
+class MainActivity : FragmentActivity(),
+    CoroutineScope,
+    ServiceConnection {
 
-    private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    private val job = Job()
+    override val coroutineContext = Dispatchers.Main + job
+
+    private val service = atomic<IDownloaderService?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
-        FileKit.init(this)
-        FileManager.init(this)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            window.isNavigationBarContrastEnforced = false
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkCallingOrSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-
-        //Set up windowing stuff.
-        actionBar?.hide()
-
-        //Set the Compose content.
         setContent {
-            CompositionLocalProvider(
-                LocalPhoneInfo provides rememberPhoneInfo(),
+
+            var list by remember { mutableStateOf<List<SmartBinaryInfo>>(emptyList()) }
+            var downloading by remember { mutableStateOf<String?>(null) }
+
+            // 🔥 初始化加载固件（只走 GitHub + FUS 合并入口）
+            LaunchedEffect(Unit) {
+                try {
+                    list = VersionFetch.fetchGithubFirmware()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
             ) {
-                MainView(
-                    modifier = Modifier
-                        .imePadding()
-                        .systemBarsPadding(),
+
+                Text(
+                    text = "固件列表",
+                    style = MaterialTheme.typography.titleLarge
                 )
+
+                Spacer(Modifier.height(8.dp))
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(list) { item ->
+
+                        val isDownloading = item.swVersion == downloading
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    downloading = item.swVersion
+                                }
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+
+                            Column(modifier = Modifier.weight(1f)) {
+
+                                Text(text = item.swVersion)
+
+                                if (isDownloading) {
+                                    Text(
+                                        text = "Downloading...",
+                                        color = Color.Red
+                                    )
+                                }
+
+                                if (item.category == "GITHUB") {
+                                    Text(
+                                        text = "测试版",
+                                        color = Color.Gray
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = {
+                                    downloading = item.swVersion
+
+                                    val s = service.value
+                                    if (s != null) {
+                                        launch {
+                                            try {
+                                                s.startDownload(item.swVersion)
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                            }
+                                        }
+                                    }
+                                }
+                            ) {
+                                Text(if (isDownloading) "下载中" else "下载")
+                            }
+                        }
+
+                        Divider()
+                    }
+                }
             }
         }
     }
 
-    override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-        downloaderService.value = IDownloaderService.Stub.asInterface(service)
+    // 🔥 Service绑定（必须，否则下载不会触发）
+    override fun onResume() {
+        super.onResume()
+        DownloaderService.bind(this, this)
+    }
+
+    override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+        service.value = IDownloaderService.Stub.asInterface(binder)
     }
 
     override fun onServiceDisconnected(name: ComponentName?) {
-        downloaderService.value = null
+        service.value = null
     }
-
-    override fun onResume() {
-        super.onResume()
-
-        //Start the DownloaderService.
-        DownloaderService.bind(this, this)
     }
-}
