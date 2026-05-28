@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 val versionCode by extra(93)
 val versionName by extra("2.1.2")
 
@@ -24,16 +26,21 @@ plugins {
     alias(libs.plugins.kotlin.atomicfu) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.kotlin.multiplatform) apply false
-    alias(libs.plugins.kotlin.multiplatform.android.library) apply false
-    alias(libs.plugins.kotlin.native.cocoapods) apply false
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.moko.resources) apply false
-    alias(libs.plugins.compose.hot.reload) apply false
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    compilerOptions {
-        freeCompilerArgs.addAll("-Xskip-prerelease-check", "-Xdont-warn-on-error-suppression")
+/**
+ * Kotlin 2.0 / AGP 8.7 兼容写法
+ */
+tasks.withType<KotlinCompile>().configureEach {
+    kotlinOptions {
+        jvmTarget = "21"
+
+        freeCompilerArgs += listOf(
+            "-Xskip-prerelease-check",
+            "-Xdont-warn-on-error-suppression"
+        )
     }
 }
 
