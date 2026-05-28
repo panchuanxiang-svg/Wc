@@ -8,47 +8,32 @@ plugins {
 }
 
 kotlin {
-    androidTarget {
-        compilations.all {
-            compilerOptions {
-                jvmTarget.set(JvmTarget.JVM_21)
-            }
-        }
-    }
-
-    jvm("desktop") {
-        compilations.all {
-            compilerOptions {
-                jvmTarget.set(JvmTarget.JVM_21)
-            }
-        }
-    }
+    androidTarget()
+    jvm("desktop")
 
     iosArm64()
     iosSimulatorArm64()
 
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
+    }
+
     sourceSets {
         val commonMain by getting {
             dependencies {
-                // Compose
                 implementation(compose.runtime)
                 implementation(compose.foundation)
                 implementation(compose.material3)
                 implementation(compose.ui)
 
-                // Kotlin & Coroutines
                 implementation(libs.kotlin.reflect)
                 implementation(libs.kotlinx.coroutines)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.datetime)
 
-                // Ktor
                 implementation(libs.ktor.client.core)
-                implementation(libs.ktor.client.content.negotiation)
-                implementation(libs.ktor.serialization.kotlinx.json)
                 implementation(libs.ktor.client.auth)
 
-                // Ksoup
                 implementation(libs.ksoup)
             }
         }
@@ -72,8 +57,8 @@ kotlin {
             }
         }
 
-        val iosArm64Main by getting { dependsOn(iosMain) }
-        val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
+        iosArm64Main.dependsOn(iosMain)
+        iosSimulatorArm64Main.dependsOn(iosMain)
     }
 }
 
@@ -84,13 +69,13 @@ android {
     val minSdkVal: Int by rootProject.extra
 
     compileSdk = compileSdkVal
+
     defaultConfig {
         minSdk = minSdkVal
     }
 
     compileOptions {
-        val javaVersionEnum: JavaVersion by rootProject.extra
-        sourceCompatibility = javaVersionEnum
-        targetCompatibility = javaVersionEnum
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 }
