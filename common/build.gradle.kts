@@ -1,24 +1,20 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.compose)
+    id("org.jetbrains.kotlin.multiplatform")
+    id("com.android.library")
+    id("org.jetbrains.kotlin.plugin.serialization")
+    id("org.jetbrains.compose")
 }
 
 kotlin {
     androidTarget()
+
     jvm("desktop")
 
     iosArm64()
     iosSimulatorArm64()
 
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_21)
-    }
-
     sourceSets {
+
         val commonMain by getting {
             dependencies {
                 implementation(compose.runtime)
@@ -26,52 +22,52 @@ kotlin {
                 implementation(compose.material3)
                 implementation(compose.ui)
 
-                implementation(libs.kotlin.reflect)
-                implementation(libs.kotlinx.coroutines)
-                implementation(libs.kotlinx.serialization.json)
-                implementation(libs.kotlinx.datetime)
+                implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.21")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
 
-                implementation(libs.ktor.client.core)
-                implementation(libs.ktor.client.auth)
+                implementation("io.ktor:ktor-client-core:2.3.12")
+                implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
+                implementation("io.ktor:ktor-client-auth:2.3.12")
 
-                implementation(libs.ksoup)
+                implementation("com.mohamedrejeb.ksoup:ksoup:0.2.1")
             }
         }
 
         val androidMain by getting {
             dependencies {
-                implementation(libs.ktor.client.okhttp)
+                implementation("io.ktor:ktor-client-okhttp:2.3.12")
             }
         }
 
         val desktopMain by getting {
             dependencies {
-                implementation(libs.ktor.client.cio)
+                implementation("io.ktor:ktor-client-cio:2.3.12")
             }
         }
 
         val iosMain by creating {
             dependsOn(commonMain)
+
+            iosArm64Main.dependsOn(iosMain)
+            iosSimulatorArm64Main.dependsOn(iosMain)
+
             dependencies {
-                implementation(libs.ktor.client.darwin)
+                implementation("io.ktor:ktor-client-darwin:2.3.12")
             }
         }
-
-        iosArm64Main.dependsOn(iosMain)
-        iosSimulatorArm64Main.dependsOn(iosMain)
     }
 }
 
 android {
     namespace = "tk.zwander.common"
 
-    val compileSdkVal: Int by rootProject.extra
-    val minSdkVal: Int by rootProject.extra
-
-    compileSdk = compileSdkVal
+    compileSdk = 34
 
     defaultConfig {
-        minSdk = minSdkVal
+        minSdk = 26
     }
 
     compileOptions {
